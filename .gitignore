@@ -1,23 +1,23 @@
 # Dependencies
-./backend/.venv
-./frontend/node_modules
+.venv/
+node_modules/
 
 # Python
-./backend/__pycache__
-./backend/*.pyc
-./backend/*.pyo
-./backend/*.pyd
-./backend/*.pyw
-./backend/*.pyz
-./backend/*.pywz
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
 
 # Next.js
-./frontend/.next/
-./frontend/out/
+.next/
+out/
 
 # Production builds
-./frontend/dist/
-./backend/dist/
+dist/
+dist/
 
 # Environment variables
 .env
