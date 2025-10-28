@@ -6,5 +6,9 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "fastapi[standard]>=0.120.0",
-    "uvicorn"
+    "uvicorn",
+    "openai>=1.0.0",
+    "python-dotenv",
+    "tiktoken",
+    "pymongo[srv]>=4.15.3",
 ]

@@ -1,63 +1,151 @@
-import Image from "next/image";
+"use client";
 
+import { useEffect, useState } from "react";
+// import IndexSidebar from "../component/index_sidebar/index_sidebar";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { pageApi, repoApi, userApi } from "../lib/api";
+import { ensureUserId, resolveUserId } from "../lib/user";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { MessageSquare, FileText, Bot } from "lucide-react";
+
+
+type ViewMode = 'chat' | 'editor';
+
+/**
+ * Main Application Page
+ *
+ * Currently displays the Chat Interface as the default view.
+ * The Markdown Editor functionality is preserved but not rendered by default.
+ *
+ * View Modes:
+ * - 'chat': Shows the AI chat interface (default)
+ * - 'editor': Shows the markdown editor (currently hidden)
+ */
 export default function Home() {
+  const router = useRouter();
+  const [currentPageId, setCurrentPageId] = useState<string>("");
+  const [viewMode, setViewMode] = useState<ViewMode>('chat'); // Default to chat interface
+
+  const [githubUrl, setGithubUrl] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    const ensureUser = async () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      try {
+        const userId = ensureUserId();
+
+        await userApi.register(userId);
+      } catch (error) {
+        console.warn("Failed to register anonymous user", error);
+      }
+    };
+
+    void ensureUser();
+  }, []);
+
+  const handleCreatePage = async (title: string, content: string) => {
+    try {
+      const userId = resolveUserId();
+
+      const response = await pageApi.createPage({
+        title: title || "Untitled",
+        content: content,
+        userId,
+      });
+
+      // Navigate to the new page
+      router.push(`/${response.page.id}`);
+      setCurrentPageId(response.page.id);
+      return response.page.id;
+    } catch (error) {
+      console.error('Failed to create page:', error);
+      return null;
+    }
+  };
+
+  const handleClone = async () => {
+    if (!githubUrl) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await repoApi.createRepo({ github_url: githubUrl });
+      setResult(res);
+      // persist the response locally so the repo page can read and display it
+      try {
+        if (res && (res as any).repo_hash) {
+          sessionStorage.setItem(`repo_${(res as any).repo_hash}`, JSON.stringify(res));
+          // navigate to the repo page whose id equals the repo_hash
+          router.push(`/repo/${(res as any).repo_hash}`);
+        }
+      } catch (e) {
+        // sessionStorage may not be available in some environments; ignore
+        console.warn('could not persist clone result to sessionStorage', e);
+      }
+      setGithubUrl("");
+    } catch (err) {
+      console.error(err);
+      setResult({ error: (err as any).message ?? String(err) });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className="flex min-h-screen font-sans bg-[#191919] text-white">
+      <main className="flex-1 h-screen flex items-center justify-center">
+        <div className="w-full max-w-2xl">
+          <Card className="p-6 bg-[#262626] text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <Bot />
+              <h2 className="text-2xl">Clone GitHub Repository</h2>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                className="flex-1 bg-[#1f1f1f] text-white placeholder:text-zinc-400"
+                placeholder="Enter GitHub URL (e.g. https://github.com/user/repo)"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+              />
+              <Button onClick={handleClone} disabled={!githubUrl || loading}>
+                {loading ? 'Cloning...' : 'Clone'}
+              </Button>
+            </div>
+
+            {result && (
+              <div className="mt-4 text-sm">
+                {('error' in result) || (result as any).error ? (
+                  <div className="text-red-400">Error: {(result as any).error}</div>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <strong>Name:</strong> {(result as any).name}
+                    </div>
+                    <div>
+                      <strong>GitHub URL:</strong>{' '}
+                      <a href={(result as any).github_url} target="_blank" rel="noreferrer" className="text-blue-400 underline">
+                        {(result as any).github_url}
+                      </a>
+                    </div>
+                    <div>
+                      <strong>Repo Hash:</strong> <code className="bg-[#1b1b1b] px-1 rounded">{(result as any).repo_hash}</code>
+                    </div>
+                    <div className="pt-2">
+                      <pre className="whitespace-pre-wrap bg-[#1b1b1b] p-2 rounded">{JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
       </main>
     </div>
