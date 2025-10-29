@@ -166,12 +166,12 @@ export function SlidingSidebar() {
 
   return (
     <div className="fixed inset-y-0 left-0 z-40 flex items-stretch">
-      <div className="relative w-[420px] max-w-[90vw] -translate-x-[375px] overflow-hidden rounded-r-3xl border border-[#343434] bg-[#1f1f1f] shadow-[0px_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-in-out hover:translate-x-0 focus-within:translate-x-0">
-        <Card className="h-full rounded-none rounded-r-3xl border-none bg-transparent p-0 text-white shadow-none">
-          <CardHeader className="rounded-none rounded-tr-3xl border-b border-[#343434] bg-[#262626] px-6 py-5">
-            <CardTitle className="font-mono text-[24px]">Workspace</CardTitle>
+      <div className="relative w-[420px] max-w-[90vw] -translate-x-[375px] overflow-hidden rounded-r-xl border border-[#343434] bg-[#1f1f1f] shadow-[0px_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-in-out hover:translate-x-0 focus-within:translate-x-0">
+        <Card className="h-full rounded-none rounded-r-xl border-none bg-transparent p-0 text-white shadow-none">
+          <CardHeader className="rounded-none rounded-tr-xl border-b border-[#343434] bg-[#262626] px-6 py-5">
+            <CardTitle className="font-mono text-[24px]">Book</CardTitle>
             <CardDescription className="font-mono text-[14px] text-gray-400">
-              Quick access to your docs and chats.
+              Quick access to your docs.
             </CardDescription>
           </CardHeader>
 
