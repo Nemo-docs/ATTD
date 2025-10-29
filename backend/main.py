@@ -108,7 +108,7 @@ def main():
     uvicorn.run(
         "main:app",  # Use import string for reload to work
         host="0.0.0.0",
-        port=8000,
+        port=10000,
         reload=True,  # Enable auto-reload on code changes
         reload_dirs=["./app"],  # Watch app directory for changes
     )
