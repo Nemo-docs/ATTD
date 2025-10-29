@@ -189,6 +189,22 @@ export const repoApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Retrieve repository metadata by repo hash
+  getRepo: async (
+    repoHash: string
+  ): Promise<
+    {
+      repo_hash: string;
+      project_intro?: string | null;
+      project_data_flow_diagram?: string | null;
+      project_cursory_explanation?: string | null;
+      github_url?: string | null;
+      name?: string | null;
+    }
+  > => {
+    return apiRequest(`/git-repo/${encodeURIComponent(repoHash)}`);
+  },
 };
 
 const userModelSchema = z.object({

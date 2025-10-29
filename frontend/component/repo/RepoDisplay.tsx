@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AsyncMarkdown from "@/component/chat/AsyncMarkdown";
 import mermaid from 'mermaid';
 import { getMarkdownComponents } from '@/component/chat/MarkdownComponents';
+import { ApiError, repoApi } from "@/lib/api";
 
 const unwrapFencedContent = (text?: string) => {
   if (!text) return '';
@@ -23,19 +24,74 @@ export default function RepoDisplay({ repoId }: { repoId: string }) {
   const router = useRouter();
   const [diagramRenderError, setDiagramRenderError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const errorMessage = (() => {
+    if (!data) return null;
+    const value = (data as any).error;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+    return null;
+  })();
 
   useEffect(() => {
+    let isMounted = true;
     const key = `repo_${repoId}`;
-    const stored = typeof window !== 'undefined' ? sessionStorage.getItem(key) : null;
-    if (stored) {
-      try {
-        setData(JSON.parse(stored));
-        return;
-      } catch (e) {
-        console.warn('Failed to parse stored repo data', e);
+
+    const loadRepoData = async () => {
+      setData(null);
+
+      let localData: any = null;
+      if (typeof window !== 'undefined') {
+        const stored = sessionStorage.getItem(key);
+        if (stored) {
+          try {
+            localData = JSON.parse(stored);
+            if (isMounted) {
+              setData(localData);
+            }
+          } catch (e) {
+            console.warn('Failed to parse stored repo data', e);
+          }
+        }
       }
-    }
-    setData({ error: "No local data found for this repo. Try cloning again." });
+
+      try {
+        const remoteData = await repoApi.getRepo(repoId);
+        if (!isMounted) {
+          return;
+        }
+        setData(remoteData);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(key, JSON.stringify(remoteData));
+          } catch (storageError) {
+            console.warn('Failed to persist repo data', storageError);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch repo data', error);
+        if (!localData && isMounted) {
+          let message = 'No repository data found. Try cloning again.';
+          if (error instanceof ApiError) {
+            try {
+              const parsed = JSON.parse(error.message);
+              message = parsed?.detail || parsed?.error || message;
+            } catch (_) {
+              message = error.message || message;
+            }
+          } else if (error instanceof Error) {
+            message = error.message;
+          }
+          setData({ error: message });
+        }
+      }
+    };
+
+    loadRepoData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [repoId]);
 
   // initialize mermaid once
@@ -122,11 +178,11 @@ export default function RepoDisplay({ repoId }: { repoId: string }) {
         <div className="p-6">
 
           {data ? (
-            ('error' in data) ? (
+            errorMessage ? (
               <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                   <div className="text-red-400 text-lg mb-2">⚠️ Error</div>
-                  <div className="text-red-300">{(data as any).error}</div>
+                  <div className="text-red-300">{errorMessage}</div>
                 </div>
               </div>
             ) : (

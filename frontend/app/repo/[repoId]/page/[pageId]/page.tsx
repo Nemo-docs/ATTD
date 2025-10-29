@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 // import IndexSidebar from "../../component/index_sidebar/index_sidebar";
-import { pageApi } from "../../lib/api";
-import { resolveUserId } from "../../lib/user";
-import { Page } from "../../types/page";
+import { pageApi } from "../../../../../lib/api";
+import { resolveUserId } from "../../../../../lib/user";
+import { Page } from "../../../../../types/page";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';

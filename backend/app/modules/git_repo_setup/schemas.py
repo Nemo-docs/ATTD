@@ -9,23 +9,23 @@ class CreateGitRepoRequest(BaseModel):
 
 class CreateGitRepoResponse(BaseModel):
     repo_hash: str
-    project_intro: Optional[str]
-    project_data_flow_diagram: Optional[str]
-    project_cursory_explanation: Optional[str]
-    github_url: Optional[HttpUrl]
-    name: Optional[str]
+    project_intro: Optional[str] = None
+    project_data_flow_diagram: Optional[str] = None
+    project_cursory_explanation: Optional[str] = None
+    github_url: Optional[HttpUrl] = None
+    name: Optional[str] = None
 
 
 class GetGitRepoResponse(BaseModel):
     repo_hash: str
-    repo_path: Optional[str]
-    project_intro: Optional[str]
-    project_data_flow_diagram: Optional[str]
-    project_cursory_explanation: Optional[str]
-    saved_to_db: Optional[bool]
-    retrieved_from_db: Optional[bool]
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
-    error: Optional[str]
-    github_url: Optional[HttpUrl]
-    name: Optional[str]
+    repo_path: Optional[str] = None
+    project_intro: Optional[str] = None
+    project_data_flow_diagram: Optional[str] = None
+    project_cursory_explanation: Optional[str] = None
+    saved_to_db: Optional[bool] = None
+    retrieved_from_db: Optional[bool] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    error: Optional[str] = None
+    github_url: Optional[HttpUrl] = None
+    name: Optional[str] = None

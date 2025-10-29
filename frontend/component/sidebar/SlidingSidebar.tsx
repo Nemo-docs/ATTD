@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, MessageSquarePlus, Loader2, AlertCircle } from "lucide-react";
+import { Building2, Notebook, Plus, Loader2, AlertCircle } from "lucide-react";
 
 import { pageApi, chatQaApi } from "@/lib/api";
 import { resolveUserId } from "@/lib/user";
@@ -59,6 +59,11 @@ export function SlidingSidebar() {
   const personalPages = useMemo(() => pages.slice(0, 20), [pages]);
 
   const handleNavigateToPage = (pageId: string) => {
+    if (isRepoRoute && repoId) {
+      router.push(`/repo/${repoId}/page/${pageId}`);
+      return;
+    }
+
     router.push(`/${pageId}`);
   };
 
@@ -82,6 +87,25 @@ export function SlidingSidebar() {
     } finally {
       setCreatingChat(false);
     }
+  };
+
+  const generateConversationId = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let id = "";
+    for (let i = 0; i < 8; i++) {
+      id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return id;
+  };
+
+  const handleCreateDocumentation = () => {
+    if (!isRepoRoute) {
+      setChatError("Open a repository to create documentation.");
+      return;
+    }
+
+    const conversationId = generateConversationId();
+    router.push(`/repo/${repoId}/conversation/${conversationId}`);
   };
 
   const renderPersonalPages = () => {
@@ -115,7 +139,8 @@ export function SlidingSidebar() {
       <div className="space-y-2">
         {personalPages.map((page) => {
           const updated = page.updated_at ? new Date(page.updated_at).toLocaleDateString() : "Recently";
-          const isActive = pathname === `/${page.id}`;
+          const pagePath = isRepoRoute && repoId ? `/repo/${repoId}/page/${page.id}` : `/${page.id}`;
+          const isActive = pathname === pagePath;
 
           return (
             <button
@@ -155,10 +180,10 @@ export function SlidingSidebar() {
               <div className="mb-4 flex">
                 <Button
                   className="h-8 px-3 py-1 text-[12px] font-mono bg-[#22c55e] text-white hover:bg-[#27d86a]"
-                  onClick={() => router.push("/create-documentation")}
+                  onClick={handleCreateDocumentation}
                 >
-                  <MessageSquarePlus className="mr-2 h-3 w-3" />
-                  Documentation
+                  <Plus className="mr-2 h-3 w-3" />
+                  Create Documentation
                 </Button>
               </div>
               <div className="space-y-8">
@@ -175,10 +200,29 @@ export function SlidingSidebar() {
                           <p className="font-mono text-[12px] text-gray-400">Shared documentation coming soon.</p>
                         </div>
                       </div>
-                      {/* <Separator className="my-4 bg-[#343434]" />
-                      <p className="font-mono text-[12px] text-gray-500">
-                        Your team space is being set up. Pages shared with your organisation will appear here.
-                      </p> */}
+                      <Separator className="my-4 bg-[#343434]" />
+                      <div className="mt-2">
+                        <button
+                          onClick={() => {
+                            if (!isRepoRoute) {
+                              setChatError("Open a repository to view its overview.");
+                              return;
+                            }
+                            router.push(`/repo/${repoId}`);
+                          }}
+                          className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                            pathname === `/repo/${repoId}`
+                              ? "border-[#5b5bff] bg-[#2d2d4f] text-white"
+                              : "border-[#343434] bg-[#262626] text-gray-200 hover:border-[#5b5bff]/60 hover:bg-[#2d2d4f]/60"
+                          }`}
+                        >
+                          <Building2 className="h-4 w-4 text-[#8b8bff]" />
+                          <div className="flex flex-col">
+                            <span className="font-mono text-[14px]">Repo Overview</span>
+                            <span className="font-mono text-[12px] text-gray-400">Open repository summary</span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -199,17 +243,17 @@ export function SlidingSidebar() {
                       {renderPersonalPages()}
                     </div>
 
-                    <div className="rounded-2xl border border-[#343434] bg-[#262626] p-4">
-                      <div className="flex items-center justify-between">
+                    {/* <div className="rounded-2xl border border-[#343434] bg-[#262626] p-4"> */}
+                      {/* <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-mono text-[16px] text-white">Chat</h3>
                           <p className="font-mono text-[12px] text-gray-400">
                             Start a fresh AI discussion for the current repo.
                           </p>
                         </div>
-                      </div>
-                      <Separator className="my-4 bg-[#343434]" />
-                      <div className="space-y-3">
+                      </div> */}
+                      {/* <Separator className="my-4 bg-[#343434]" /> */}
+                      {/* <div className="space-y-3">
                         {chatError && (
                           <div className="flex items-center gap-2 rounded-lg border border-[#5b5bff]/40 bg-[#2d2d4f]/40 px-3 py-2 font-mono text-[12px] text-[#bfbfff]">
                             <AlertCircle className="h-4 w-4" />
@@ -221,8 +265,8 @@ export function SlidingSidebar() {
                             Open a repository to enable chat.
                           </div>
                         )}
-                      </div>
-                    </div>
+                      </div> */}
+                    {/* </div> */}
                   </div>
                 </section>
               </div>
