@@ -1,4 +1,5 @@
 import os
+import concurrent.futures
 import tiktoken
 import logging
 import hashlib
@@ -494,17 +495,34 @@ Provide only the Mermaid diagram code, properly formatted and functional with en
         return sorted_files
 
     def _generate_file_roles(self, file_paths: List[str]) -> Dict[str, str]:
-        """Generate brief role descriptions for each file using OpenAI."""
-        file_roles = {}
+        """Generate brief role descriptions for each file using OpenAI.
+
+        This implementation processes file batches concurrently using a
+        ThreadPoolExecutor to speed up analysis for large repositories.
+        """
+        file_roles: Dict[str, str] = {}
 
         # Process files in batches to avoid token limits
-        batch_size = 2
+        batch_size = 1
 
-        for i in range(0, len(file_paths), batch_size):
-            batch_files = file_paths[i : i + batch_size]
+        # Build batches
+        batches = [
+            file_paths[i : i + batch_size]
+            for i in range(0, len(file_paths), batch_size)
+        ]
 
-            # Prepare the prompt
-            files_info = []
+        if not batches:
+            return file_roles
+
+        # Limit concurrency to a reasonable number
+        max_workers = min(4 * (os.cpu_count() or 1), len(batches))
+
+        def process_batch(batch_files: List[str]) -> Dict[str, str]:
+            """Read files, call the LLM for a single batch and return a map of file_path -> description."""
+            local_roles: Dict[str, str] = {}
+
+            # Prepare file previews
+            files_info: List[str] = []
             for file_path in batch_files:
                 try:
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -527,7 +545,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
 
             try:
                 response = open_router_client.chat.completions.create(
-                    model="openai/gpt-4o-mini",
+                    model="openai/gpt-5-mini",
                     messages=[
                         {
                             "role": "system",
@@ -535,8 +553,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=batch_size * 1000,
-                    temperature=0.3,
+                    max_tokens=20 * 1000,
                     response_format={
                         "type": "json_schema",
                         "json_schema": {
@@ -544,57 +561,53 @@ Return a JSON object where each key is a filename and each value is a brief desc
                             "strict": True,
                             "schema": {
                                 "type": "object",
-                                "properties": {},
-                                "additionalProperties": {
-                                    "type": "string",
-                                    "description": "Brief description of the file's role and purpose",
+                                "properties": {
+                                    "file_name": {
+                                        "type": "string",
+                                        "description": "The name of the file",
+                                    },
+                                    "file_description": {
+                                        "type": "string",
+                                        "description": "The description of the file",
+                                    },
                                 },
+                                "additionalProperties": False,
+                                "required": ["file_name", "file_description"],
                             },
                         },
                     },
                 )
 
-                # Parse the structured JSON response
                 content = response.choices[0].message.content.strip()
                 self.logger.info(f"Prompt: {prompt}")
-                # print(f"Response: {response}")
                 self.logger.info(f"Content: {content}")
 
                 try:
                     import json
 
-                    parsed_response = json.loads(content)
-
-                    # Handle the structured response format: {"filename.ext": "description", ...}
-                    for filename, description in parsed_response.items():
-                        # Find the full path for this filename
-                        for file_path in batch_files:
-                            if os.path.basename(file_path) == filename:
-                                file_roles[file_path] = description
-                                break
-
+                    content = json.loads(content)
+                    local_roles[file_path] = content["file_description"]
                 except json.JSONDecodeError as e:
-                    self.logger.error(f"Failed to parse JSON response: {e}")
-                    self.logger.error(f"Response content: {content}")
-                    raise e
+                    print(f"Failed to parse JSON response: {e}")
+                    print(f"Response content: {content}")
 
             except Exception as e:
-                # If API call fails, provide generic descriptions
-                self.logger.error(f"Error: {e}")
-                raise e
-                # for file_path in batch_files:
-                #     filename = os.path.basename(file_path)
-                #     # ext = os.path.splitext(filename)[1].lower()
-                #     # if ext == ".py":
-                #     #     file_roles[file_path] = "Python source code file"
-                #     # elif ext in [".js", ".ts"]:
-                #     #     file_roles[file_path] = f"{ext[1:].upper()} source code file"
-                #     # elif ext == ".json":
-                #     #     file_roles[file_path] = "JSON configuration file"
-                #     # elif ext == ".md":
-                #     #     file_roles[file_path] = "Markdown documentation file"
-                #     # else:
-                #     #     file_roles[file_path] = f"{ext or 'Unknown'} file"
+                # Log but do not raise so other batches can complete
+                self.logger.error(f"Error processing batch {batch_files}: {e}")
+
+            return local_roles
+
+        # Run batches concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_batch, b) for b in batches]
+
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    result = future.result()
+                    file_roles.update(result)
+                except Exception as e:
+                    # Shouldn't happen because process_batch catches exceptions, but be defensive
+                    self.logger.error(f"Batch processing raised an exception: {e}")
 
         return file_roles
 

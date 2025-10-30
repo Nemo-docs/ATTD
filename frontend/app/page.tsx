@@ -120,31 +120,7 @@ export default function Home() {
               </Button>
             </div>
 
-            {result && (
-              <div className="mt-4 text-sm">
-                {('error' in result) || (result as any).error ? (
-                  <div className="text-red-400">Error: {(result as any).error}</div>
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <strong>Name:</strong> {(result as any).name}
-                    </div>
-                    <div>
-                      <strong>GitHub URL:</strong>{' '}
-                      <a href={(result as any).github_url} target="_blank" rel="noreferrer" className="text-blue-400 underline">
-                        {(result as any).github_url}
-                      </a>
-                    </div>
-                    <div>
-                      <strong>Repo Hash:</strong> <code className="bg-[#1b1b1b] px-1 rounded">{(result as any).repo_hash}</code>
-                    </div>
-                    <div className="pt-2">
-                      <pre className="whitespace-pre-wrap bg-[#1b1b1b] p-2 rounded">{JSON.stringify(result, null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            
           </Card>
         </div>
       </main>
