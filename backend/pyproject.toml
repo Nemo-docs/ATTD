@@ -11,4 +11,5 @@ dependencies = [
     "python-dotenv",
     "tiktoken",
     "pymongo[srv]>=4.15.3",
+    "boto3>=1.40.62",
 ]

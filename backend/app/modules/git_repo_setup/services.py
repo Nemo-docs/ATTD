@@ -4,6 +4,7 @@ import subprocess
 from dotenv import load_dotenv
 from app.modules.auto_generation.service import AutoGenerationService
 import logging
+from utils.s3_utils import zip_folder, upload_file_to_s3
 
 load_dotenv()
 
@@ -54,6 +55,10 @@ class GitRepoSetupService:
             # Run git clone
             self.logger.info(f"Cloning repo to disk: {github_url}")
             subprocess.run(["git", "clone", github_url, dest], check=True)
+
+            # zip the repo and upload to s3
+            zip_file_path = zip_folder(dest, f"{repo_hash}.zip")
+            upload_file_to_s3(zip_file_path, f"{repo_hash}")
 
             # generate intro and save to db
             self.logger.info(f"Generating new intro for repo: {repo_hash}")

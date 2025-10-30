@@ -10,6 +10,7 @@ from clients import open_router_client, mongodb_client
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.chat_qa.handle_agentic_request import run_agentic_loop
 from app.modules.chat_qa.models import ChatQaModel, ChatConversationModel
+from utils.s3_utils import download_and_extract_zip
 
 
 class ChatQaService:
@@ -106,7 +107,7 @@ class ChatQaService:
 
             # Generate AI response
             response_text, tokens_used = self._generate_chat_response(
-                user_message, model or self.default_model, diagram_mode
+                user_message, diagram_mode
             )
 
             if response_text.startswith("Error:"):
@@ -297,11 +298,19 @@ class ChatQaService:
         Returns:
             Dict containing the response and metadata
         """
+        repo_path = os.getenv("PARENT_DIR") + "/" + repo_hash
+        if os.path.exists(repo_path):
+            pass
+        else:
+            # make the directory if it doesn't exist
+            os.makedirs(repo_path, exist_ok=True)
+            download_and_extract_zip(repo_hash, repo_path + ".zip", repo_path)
+
         result = run_agentic_loop(
             [{"role": "user", "content": message}],
             max_iterations=10,
             repo_hash=repo_hash,
-            dir_path="C:/Users/devan/Documents/ATTD/chainlite",
+            dir_path=repo_path,
         )
 
         # response = self.generate_response(
@@ -309,8 +318,33 @@ class ChatQaService:
         # )
         try:
             # Generate AI response
+            message = """
+            Project Introduction:
+            ```
+            {project_intro}
+            ```
+            Project Data Flow Diagram:
+            ```
+            {project_data_flow_diagram}
+            ```
+            Project Cursory Explanation:
+            ```
+            {project_cursory_explanation}
+            ```
+            Detailed Analysis:
+            ```
+            {result}
+            ```
+
+            User message:
+            ```
+            {message}
+            ```
+
+            """
+
             response_text, tokens_used = self._generate_chat_response(
-                result, "openai/gpt-5-mini", diagram_mode
+                message, diagram_mode
             )
 
             if response_text.startswith("Error:"):
@@ -333,7 +367,7 @@ class ChatQaService:
                 "conversation_id": conversation_id,
                 "page_id": page_id,
                 "diagram_mode": diagram_mode,
-                "model_used": "openai/gpt-5-mini",
+                "model_used": "openai/gpt-4o-mini",
                 "tokens_used": tokens_used,
                 "created_at": datetime.utcnow(),
                 "user_id": user_id,
@@ -546,14 +580,13 @@ class ChatQaService:
         coll.update_one({"id": model.id}, {"$set": doc}, upsert=True)
 
     def _generate_chat_response(
-        self, message: str, model: str, diagram_mode: bool = False
+        self, message: str, diagram_mode: bool = False
     ) -> tuple[str, int]:
         """
         Generate a chat response using the OpenRouter client.
 
         Args:
             message: The user's message
-            model: The AI model to use
             diagram_mode: Whether to generate diagram-focused responses
 
         Returns:

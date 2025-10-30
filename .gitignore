@@ -91,3 +91,8 @@ chainlite/
 test/
 trash/
 __pycache__/
+
+# zip files
+*.zip
+
+messages.json 
