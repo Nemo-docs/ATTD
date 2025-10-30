@@ -317,8 +317,16 @@ class ChatQaService:
         #     message=result, model=self.default_model, diagram_mode=diagram_mode
         # )
         try:
+            project_context = self.auto_service.get_project_intro_by_hash(repo_hash)
+            project_intro = project_context.get("project_intro", "")
+            project_data_flow_diagram = project_context.get(
+                "project_data_flow_diagram", ""
+            )
+            project_cursory_explanation = project_context.get(
+                "project_cursory_explanation", ""
+            )
             # Generate AI response
-            message = """
+            context_message = f"""
             Project Introduction:
             ```
             {project_intro}
@@ -344,7 +352,7 @@ class ChatQaService:
             """
 
             response_text, tokens_used = self._generate_chat_response(
-                message, diagram_mode
+                context_message, diagram_mode
             )
 
             if response_text.startswith("Error:"):
