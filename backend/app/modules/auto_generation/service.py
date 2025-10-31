@@ -4,12 +4,13 @@ import tiktoken
 import logging
 import hashlib
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
 from clients import open_router_client, mongodb_client
 from app.modules.auto_generation.models import ProjectIntroModel
+from utils.mermaid_generation_validation import MermaidGenerationValidator
 
 
 load_dotenv()
@@ -36,6 +37,8 @@ class AutoGenerationService:
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d"
             )
         )
+
+        self.mermaid_validator = MermaidGenerationValidator(logger=self.logger)
 
         # Database setup
         self.db_name = os.getenv("MONGODB_DATABASE", "attd_db")
@@ -135,97 +138,21 @@ Format the response as a coherent introduction that someone unfamiliar with the 
 
             project_intro = intro_response.choices[0].message.content.strip()
 
-            # Step 5: Generate data flow diagram
-            diagram_prompt = f"""Based on the following project structure and file descriptions, create a Mermaid diagram showing the data flow and component interactions. Focus on the logical flow of data through the system.
-
-Project Structure and File Roles:
-{cursory_explanation}
-
-Analyze the project structure and create a Mermaid flowchart that shows:
-
-1. **Main Components**: Identify key modules, services, or layers
-2. **Data Flow**: Show how data moves between components
-3. **External Interfaces**: Show any external APIs, databases, or user interfaces
-4. **Processing Flow**: Show the main processing pipeline
-5. **Technical Details**: Assume the user is very technical and show the technical details of the project
-
-**IMPORTANT STYLING REQUIREMENTS:**
-- Use high-contrast colors for maximum readability
-- Add step numbers to show process flow sequence
-- Use descriptive labels that are easy to understand
-- Apply visual hierarchy with different node shapes and colors
-- Make the diagram clean and professional
-
-**Color Scheme:**
-- User Interface: Light blue (#E1F5FE) with dark text
-- Business Logic/Services: Light green (#E8F5E8) with dark text
-- Data Processing: Light yellow (#FFFDE7) with dark text
-- Database/Storage: Light purple (#F3E5F5) with dark text
-- External APIs: Light orange (#FFE0B2) with dark text
-- Start/Entry points: Light cyan (#E0F2F1) with dark text
-
-**Node Shapes:**
-- Use rectangles [Node] for components
-- Use rounded rectangles [Node] for user interfaces
-- Use cylinders [(Database)] for data storage
-- Use hexagons {{Node}} for processing steps
-- Use diamonds {{Node}} for decision points
-
-**Example format with enhanced styling:**
-```mermaid
-graph TD
-    %% Define styles for high contrast and readability
-    classDef userInterface fill:#E1F5FE,stroke:#01579B,stroke-width:2px,color:#000
-    classDef serviceLayer fill:#E8F5E8,stroke:#2E7D32,stroke-width:2px,color:#000
-    classDef dataProcessing fill:#FFFDE7,stroke:#F57C00,stroke-width:2px,color:#000
-    classDef database fill:#F3E5F5,stroke:#4A148C,stroke-width:2px,color:#000
-    classDef externalAPI fill:#FFE0B2,stroke:#E65100,stroke-width:2px,color:#000
-
-    %% Start point with step number
-    A[1. User Request] --> B[2. Input Processing]
-    B --> C[3. Business Logic]
-    C --> D[4. Data Processing]
-    D --> E[(5. Database)]
-    C --> F[6. External API]
-
-    %% Apply styles
-    class A userInterface
-    class B dataProcessing
-    class C serviceLayer
-    class D dataProcessing
-    class E database
-    class F externalAPI
-```
-
-Provide only the Mermaid diagram code, properly formatted and functional with enhanced styling."""
-
-            # Step 6: Generate the diagram using OpenAI
-            diagram_response = open_router_client.chat.completions.create(
-                model="openai/gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert in creating Mermaid diagrams for software architecture. Focus on clear, logical data flow diagrams with excellent visual design. Always use step numbers, high-contrast colors, and clear visual hierarchy. Make diagrams that are immediately understandable to both technical and non-technical audiences. Use the specified color scheme and styling requirements to create professional, readable diagrams.",
-                    },
-                    {"role": "user", "content": diagram_prompt},
-                ],
-                max_tokens=1000,
-                temperature=0.3,
+            # Step 5: Generate data flow diagram with validation loop
+            (
+                project_diagram,
+                validation_success,
+            ) = self.mermaid_validator.generate_mermaid_diagram(
+                cursory_explanation, max_iterations=10
             )
 
-            project_diagram = diagram_response.choices[0].message.content.strip()
-
-            # Step 7: Clean up the diagram response (remove markdown code blocks if present)
-            if project_diagram.startswith("```mermaid"):
-                project_diagram = (
-                    project_diagram.replace("```mermaid", "").replace("```", "").strip()
+            if not validation_success:
+                self.logger.warning(
+                    "Mermaid diagram validation failed after max iterations. "
+                    "Using generated diagram anyway."
                 )
-            elif project_diagram.startswith("```"):
-                project_diagram = project_diagram.replace("```", "").strip()
 
-            # Step 8: Combine intro and diagram (not used in final output)
-
-            # Step 9: Create project intro model and save to database
+            # Step 6: Create project intro model and save to database
             project_intro_model = ProjectIntroModel(
                 repo_path=os.getenv("PARENT_DIR") + "/" + repo_hash,
                 repo_hash=repo_hash,

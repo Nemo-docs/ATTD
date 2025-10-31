@@ -1,4 +1,5 @@
-from openai import OpenAI
+# from openai import OpenAI
+from langfuse.openai import openai
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -7,7 +8,7 @@ from pymongo.server_api import ServerApi
 
 load_dotenv()
 
-open_router_client = OpenAI(
+open_router_client = openai.OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.getenv("OPENROUTER_API_KEY"),
 )

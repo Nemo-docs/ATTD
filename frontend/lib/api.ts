@@ -230,3 +230,40 @@ export const userApi = {
     return registerUserResponseSchema.parse(response);
   },
 };
+
+const mermaidValidationResponseSchema = z.object({
+  isValid: z.boolean(),
+  error: z.string().optional(),
+});
+
+export type MermaidValidationResponse = z.infer<typeof mermaidValidationResponseSchema>;
+
+export const mermaidApi = {
+  /**
+   * Validate Mermaid diagram syntax
+   * @param mermaidCode The Mermaid diagram code to validate
+   * @returns Validation result with isValid flag and optional error message
+   */
+  validate: async (mermaidCode: string): Promise<MermaidValidationResponse> => {
+    // Call Next.js API route directly (not backend API)
+    const frontendUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://localhost:3000';
+    
+    const response = await fetch(`${frontendUrl}/api/mermaid/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ mermaidCode }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new ApiError(response.status, errorText);
+    }
+
+    const result = await response.json();
+    return mermaidValidationResponseSchema.parse(result);
+  },
+};

@@ -375,7 +375,7 @@ class ChatQaService:
                 "conversation_id": conversation_id,
                 "page_id": page_id,
                 "diagram_mode": diagram_mode,
-                "model_used": "openai/gpt-4o-mini",
+                "model_used": "anthropic/claude-3.7-sonnet",
                 "tokens_used": tokens_used,
                 "created_at": datetime.utcnow(),
                 "user_id": user_id,
@@ -646,13 +646,12 @@ Always aim to be maximally helpful while being truthful about your limitations."
             # self.logging.info("system_prompt: ", system_prompt)
             # self.logging.info("message: ", message)
             response = open_router_client.chat.completions.create(
-                model="openai/gpt-4o-mini",
+                model="anthropic/claude-3.7-sonnet",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": message},
                 ],
                 max_tokens=self.max_tokens,
-                temperature=0.7,  # Balanced creativity and consistency
             )
 
             response_text = response.choices[0].message.content.strip()
