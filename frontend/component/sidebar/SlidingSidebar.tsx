@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, Plus, Loader2, AlertCircle } from "lucide-react";
+import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 
 import { pageApi, chatQaApi } from "@/lib/api";
 import { resolveUserId } from "@/lib/user";
@@ -26,6 +26,7 @@ export function SlidingSidebar() {
   const [pagesError, setPagesError] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -165,8 +166,15 @@ export function SlidingSidebar() {
   };
 
   return (
-    <div className="fixed inset-y-0 left-0 z-40 flex items-stretch">
-      <div className="relative w-[420px] max-w-[90vw] -translate-x-[375px] overflow-hidden rounded-r-xl border border-[#343434] bg-[#1f1f1f] shadow-[0px_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-in-out hover:translate-x-0 focus-within:translate-x-0">
+    <>
+      {/* Slide-out panel */}
+      <div
+        className={`fixed inset-y-0 left-0 z-60 w-[410px] max-w-[100vw] transform overflow-hidden rounded-r-xl border border-[#343434] bg-[#1f1f1f] shadow-[0px_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-[380px]"
+        }`}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+      >
         <Card className="h-full rounded-none rounded-r-xl border-none bg-transparent p-0 text-white shadow-none">
           <CardHeader className="rounded-none rounded-tr-xl border-b border-[#343434] bg-[#262626] px-6 py-5">
             <CardTitle className="font-mono text-[24px]">Book</CardTitle>
@@ -179,11 +187,11 @@ export function SlidingSidebar() {
             <ScrollArea className="max-h-[calc(100vh-120px)] px-6 py-6 overflow-auto">
               <div className="mb-4 flex">
                 <Button
-                  className="h-8 px-3 py-1 text-[12px] font-mono bg-[#22c55e] text-white hover:bg-[#27d86a]"
+                  className="h-8 px-3 py-1 text-[12px] font-mono bg-[#c58122] text-white hover:bg-[#7d5a28]"
                   onClick={handleCreateDocumentation}
                 >
                   <Plus className="mr-2 h-3 w-3" />
-                  Create Documentation
+                  Start
                 </Button>
               </div>
               <div className="space-y-8">
@@ -274,13 +282,21 @@ export function SlidingSidebar() {
           </CardContent>
         </Card>
 
-        <div className="pointer-events-none absolute right-[-48px] top-1/2 flex -translate-y-1/2 items-center">
-          <div className="flex h-32 w-9 items-center justify-center rounded-r-lg border border-[#343434] border-l-transparent bg-[#262626]">
-            <span className="rotate-90 font-mono text-[14px] text-gray-300">Panel</span>
-          </div>
-        </div>
       </div>
-    </div>
+
+      {/* Slim handle to open the panel */}
+      {/* <div className="fixed left-0 top-1/2 z-60 -translate-y-1/2">
+        <button
+          type="button"
+          onMouseEnter={() => setIsOpen(true)}
+          className="flex h-32 w-6 items-center justify-center rounded-r-lg border border-[#343434] border-l-transparent bg-[#262626] text-gray-300"
+          aria-label="Open panel"
+        >
+
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div> */}
+    </>
   );
 }
 

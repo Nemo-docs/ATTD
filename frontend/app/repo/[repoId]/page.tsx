@@ -1,10 +1,12 @@
-import RepoDisplay from "@/component/repo/RepoDisplay";
+import { redirect } from "next/navigation";
 
 export default async function RepoPage({ params }: { params: { repoId: string } | Promise<{ repoId: string }> }) {
   // `params` may be a Promise in Next.js app router; await it before use
   const resolvedParams = await params;
   const { repoId } = resolvedParams;
-  return <RepoDisplay repoId={repoId} />;
+  
+  // Redirect to the intro page by default
+  redirect(`/repo/${repoId}/intro`);
 }
 
 

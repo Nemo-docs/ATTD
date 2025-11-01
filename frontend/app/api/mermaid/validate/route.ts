@@ -67,7 +67,39 @@ export async function POST(request: NextRequest) {
       const dom = new JSDOM('<div id="container"></div>');
       (globalThis as any).window = dom.window as any;
       (globalThis as any).document = dom.window.document as any;
-      (globalThis as any).navigator = { userAgent: 'node.js' } as any;
+      try {
+        const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+        if (!navigatorDescriptor) {
+          Object.defineProperty(globalThis, 'navigator', {
+            value: { userAgent: 'node.js' },
+            configurable: true,
+            enumerable: true,
+            writable: true,
+          });
+        } else {
+          const navigatorValue =
+            typeof navigatorDescriptor.get === 'function'
+              ? navigatorDescriptor.get.call(globalThis)
+              : (globalThis as any).navigator;
+          if (
+            navigatorValue &&
+            typeof navigatorValue === 'object' &&
+            !('userAgent' in navigatorValue)
+          ) {
+            Object.defineProperty(navigatorValue, 'userAgent', {
+              value: 'node.js',
+              configurable: true,
+              enumerable: true,
+              writable: true,
+            });
+          }
+        }
+      } catch (navigatorShimError) {
+        console.log(
+          'Navigator shim setup failed:',
+          (navigatorShimError as any)?.message || navigatorShimError
+        );
+      }
       (globalThis as any).HTMLElement = (dom.window as any).HTMLElement;
       (globalThis as any).SVGElement = (dom.window as any).SVGElement;
     }

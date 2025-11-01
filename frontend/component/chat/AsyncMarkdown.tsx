@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import type { Components } from 'react-markdown';
 
 interface AsyncMarkdownProps {
   children: string;
-  components: any;
+  components?: Components;
   isUser: boolean;
 }
 

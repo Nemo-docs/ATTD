@@ -102,7 +102,7 @@ class MermaidGenerationValidator:
         """Validate Mermaid diagram syntax via the frontend validation API."""
 
         try:
-            frontend_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+            frontend_url = os.getenv("FRONTEND_BASE_URL")
             validation_url = f"{frontend_url}/api/mermaid/validate"
             self.logger.info("Validating Mermaid diagram via %s", validation_url)
 

@@ -98,9 +98,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <>
       {showSidebar && <SlidingSidebar />}
-      <div
-        className={showSidebar ? "ml-[64px] transition-all duration-200 ease-out" : "transition-all duration-200 ease-out"}
-      >
+      <div className="transition-all duration-200 ease-out">
         {children}
       </div>
       <IndexSidebarPopup
