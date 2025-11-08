@@ -1,0 +1,20 @@
+# ruff.toml
+
+line-length = 88
+target-version = "py310"
+select = ["E", "F"]
+fix = true
+show-fixes = true
+
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist"
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

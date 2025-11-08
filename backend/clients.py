@@ -3,8 +3,9 @@ from langfuse.openai import openai
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from clerk_backend_api import Clerk
+
 
 load_dotenv()
 
@@ -37,3 +38,10 @@ mongodb_client = MongoClient(os.getenv("MONGODB_URI"), server_api=ServerApi("1")
 #     print("Pinged your deployment. You successfully connected to MongoDB!")
 # except Exception as e:
 #     print(e)
+
+
+# Initialize Clerk SDK
+clerk_client = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
+
+# Define public paths that bypass authentication
+PUBLIC_PREFIXES = ("/health", "/metrics", "/api", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth

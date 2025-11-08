@@ -1,0 +1,16 @@
+[project]
+name = "mcp-server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "clerk-backend-api>=3.3.1",
+    "fastmcp>=2.13.0.2",
+    "httpx>=0.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "python-dotenv>=1.2.1",
+]
