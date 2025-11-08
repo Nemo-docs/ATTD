@@ -21,7 +21,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${cleanBaseUrl}/api${endpoint}`;
-
+  console.log('url', url);
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',

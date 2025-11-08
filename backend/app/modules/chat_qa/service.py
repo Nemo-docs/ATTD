@@ -1,17 +1,14 @@
 import logging
 import uuid
 import os
-
-# kept imports minimal for this service
 from typing import Dict, Any, Optional
 from datetime import datetime
-
 from clients import open_router_client, mongodb_client
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.chat_qa.handle_agentic_request import run_agentic_loop
 from app.modules.chat_qa.models import ChatQaModel, ChatConversationModel
 from utils.s3_utils import download_and_extract_zip
-
+from app.modules.chat_qa.handle_basic_request import run_basic_agentic_loop
 
 class ChatQaService:
     """
@@ -253,25 +250,38 @@ class ChatQaService:
                 f"Route analysis result (requires_repo_context={requires_repo_context}): {analysis_text}"
             )
 
-            if requires_repo_context and think_level == "simple":
+            # if requires_repo_context and think_level == "simple":
                 # Forward to the full generator which can use repo context
-                return self.generate_response(
-                    message=message,
-                    conversation_id=conversation_id,
-                    page_id=page_id,
-                    repo_hash=repo_hash,
-                    diagram_mode=diagram_mode,
-                    user_id=user_id,
-                )
-            else:
-                return self._handle_agentic_request(
-                    message=message,
-                    conversation_id=conversation_id,
-                    page_id=page_id,
-                    repo_hash=repo_hash,
-                    diagram_mode=diagram_mode,
-                    user_id=user_id,
-                )
+            ans = run_basic_agentic_loop(
+                [{"role": "user", "content": message}],
+                repo_hash=repo_hash,
+            )
+            final_message = f"""
+            User message:
+            ```
+            {message}
+            ```
+            Final Response:
+            ```
+            {ans}
+            ```
+            """
+            final_response, tokens_used = self._generate_chat_response(final_message, diagram_mode)
+
+            return {
+                "response": final_response,
+                "tokens_used": tokens_used,
+                "id": str(uuid.uuid4()),
+                "message": message,
+                "conversation_id": conversation_id,
+                "page_id": page_id,
+                "diagram_mode": diagram_mode,
+                "user_id": user_id,
+                "model_used": "anthropic/claude-3.7-sonnet",
+                "created_at": datetime.utcnow(),
+                "user_id": user_id,
+                "tokens_used": tokens_used,
+            }
 
         except Exception as e:
             self.logger.error(f"Error in route_request: {str(e)}")
