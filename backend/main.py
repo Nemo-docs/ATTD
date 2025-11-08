@@ -1,9 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import os
 import uvicorn
 import logging
-import os
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from middleware import auth_middleware
 # no direct datetime usage in this module
 from contextlib import asynccontextmanager
 
@@ -65,11 +66,14 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        os.getenv("FRONTEND_BASE_URL")
     ],  # Frontend origins
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
+
+app.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
 # Include auto generation routes
 app.include_router(auto_generation_router, prefix="/api", tags=["auto-generation"])

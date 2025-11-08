@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight } from "lucide-react";
-
+import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, Settings } from "lucide-react";
+import { KeysModal } from "@/component/keys/KeysModal";
 import { pageApi, chatQaApi } from "@/lib/api";
 import { resolveUserId } from "@/lib/user";
 import { Page } from "@/types/page";
@@ -27,6 +27,7 @@ export function SlidingSidebar() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isKeysModalOpen, setIsKeysModalOpen] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -164,7 +165,7 @@ export function SlidingSidebar() {
       </div>
     );
   };
-
+  
   return (
     <>
       {/* Slide-out panel */}
@@ -177,10 +178,23 @@ export function SlidingSidebar() {
       >
         <Card className="h-full rounded-none rounded-r-xl border-none bg-transparent p-0 text-white shadow-none">
           <CardHeader className="rounded-none rounded-tr-xl border-b border-[#343434] bg-[#262626] px-6 py-5">
-            <CardTitle className="font-mono text-[24px]">Book</CardTitle>
-            <CardDescription className="font-mono text-[14px] text-gray-400">
-              Quick access to your docs.
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="font-mono text-[24px]">Book</CardTitle>
+                <CardDescription className="font-mono text-[14px] text-gray-400">
+                  Quick access to your docs.
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsKeysModalOpen(true)}
+                className="flex items-center gap-2 h-8 px-3 py-1 text-[12px] font-mono border-[#343434] bg-[#1f1f1f] text-gray-300 hover:bg-[#2d2d4f] hover:text-white hover:border-[#5b5bff]/60"
+              >
+                <Settings className="h-3 w-3" />
+                API_Key
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent className="flex-1 p-0">
@@ -296,6 +310,12 @@ export function SlidingSidebar() {
           <ChevronRight className="h-4 w-4" />
         </button>
       </div> */}
+
+      {/* KeysModal */}
+      <KeysModal
+        open={isKeysModalOpen}
+        onOpenChange={setIsKeysModalOpen}
+      />
     </>
   );
 }

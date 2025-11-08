@@ -26,6 +26,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+!.env.example
 
 # IDE
 .vscode/
@@ -75,8 +76,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
 
 # vercel
 .vercel
