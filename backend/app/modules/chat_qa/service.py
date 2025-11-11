@@ -9,6 +9,7 @@ from app.modules.chat_qa.handle_agentic_request import run_agentic_loop
 from app.modules.chat_qa.models import ChatQaModel, ChatConversationModel
 from utils.s3_utils import download_and_extract_zip
 from app.modules.chat_qa.handle_basic_request import run_basic_agentic_loop
+from app.modules.chat_qa.handle_basic_request import resolve_definations
 
 class ChatQaService:
     """
@@ -209,6 +210,11 @@ class ChatQaService:
                 "user_id",
                 request.get("user_id") if isinstance(request, dict) else None,
             )
+            mentioned_definations = getattr(
+                request,
+                "mentioned_definations",
+                request.get("mentioned_definations") if isinstance(request, list) else None,
+            )
 
             if not user_id:
                 return {"error": "user_id is required", "id": str(uuid.uuid4())}
@@ -252,6 +258,7 @@ class ChatQaService:
 
             # if requires_repo_context and think_level == "simple":
                 # Forward to the full generator which can use repo context
+            message = resolve_definations(message, mentioned_definations, repo_hash)
             ans = run_basic_agentic_loop(
                 [{"role": "user", "content": message}],
                 repo_hash=repo_hash,

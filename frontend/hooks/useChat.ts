@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSearchParams, useParams } from 'next/navigation';
 import { chatQaApi } from '@/lib/api';
 import { resolveUserId } from '@/lib/user';
+import { useDefinitions } from '@/hooks/useDefinitions';
 import { ChatMessage, ChatConversation } from '@/types/chat';
 import { ChatQaRequest, ChatConversationRequest, ChatConversationResponse, ChatQaResponse } from '@/types/chat-qa';
 
@@ -74,6 +75,7 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
   const params = useParams();
   const repoId = params.repoId as string;
   const conversationId = params.conversationId as string;
+  const { findMatches } = useDefinitions(repoId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -84,7 +86,7 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
   const [showHistory, setShowHistory] = useState(false);
   const [diagramMode, setDiagramMode] = useState(false);
   const [thinkLevel, setThinkLevel] = useState<'simple' | 'detailed'>('simple');
-
+  const [mentionedDefinations, setMentionedDefinations] = useState<Array<{node_name: string, file_name: string, start_end_lines: number[], node_type: 'file' | 'class' | 'function'}>>([]);
   // ScrollArea viewport is a div element; keep the ref typed to HTMLDivElement
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [canvasOpen, setCanvasOpen] = useState(false);
@@ -201,9 +203,41 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
     return { isCanvas: true, text: (m[1] || '').trim() };
   }
 
+  // Helper: extract mentioned definitions from input text
+  const extractMentionedDefinitions = (input: string) => {
+    const mentions: string[] = [];
+    const regex = /@([\w.]+)/g;
+    let match;
+
+    while ((match = regex.exec(input)) !== null) {
+      mentions.push(match[1]);
+    }
+
+    // Find matching definitions for each mention
+    const mentionedDefinitions = mentions
+      .map(mention => {
+        const matches = findMatches(mention);
+        // Return the exact match if found, otherwise the first match
+        return matches.find(def => def.node_name === mention) || matches[0];
+      })
+      .filter(Boolean) // Remove undefined entries
+      .map(def => ({
+        node_name: def.node_name,
+        file_name: def.file_name,
+        start_end_lines: def.start_end_lines,
+        node_type: def.node_type,
+      }));
+
+    return mentionedDefinitions;
+  };
+
   const handleSendMessage = async () => {
     const parsed = parseCanvasCommand(inputValue.trim());
     if (!parsed.text || isLoading) return;
+
+    // Extract mentioned definitions from the input
+    const extractedDefinitions = extractMentionedDefinitions(parsed.text);
+    setMentionedDefinations(extractedDefinitions);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -273,11 +307,12 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
         diagramMode: diagramMode,
         thinkLevel: thinkLevel,
         userId: requireUserId(),
+        mentionedDefinations: mentionedDefinations,
       };
 
       console.log('ChatPage: repoId from params:', repoId);
       console.log('ChatPage: requestData:', requestData);
-
+      console.log('requestData', requestData)
       const response = await chatQaApi.sendMessage(requestData);
       const responseCreatedAt = (response as any).created_at ?? response.createdAt;
       const responseDiagramMode = (response as any).diagram_mode ?? response.diagramMode ?? false;

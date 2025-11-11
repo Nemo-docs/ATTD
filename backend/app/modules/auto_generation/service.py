@@ -41,8 +41,8 @@ class AutoGenerationService:
         self.mermaid_validator = MermaidGenerationValidator(logger=self.logger)
 
         # Database setup
-        self.db_name = os.getenv("MONGODB_DATABASE", "attd_db")
-        self.collection_name = os.getenv("MONGODB_COLLECTION", "project_intros")
+        self.db_name = os.getenv("DB_NAME", "attd_db")
+        self.collection_name = "project_intros"
         self.db = mongodb_client[self.db_name]
         self.collection: Collection = self.db[self.collection_name]
 

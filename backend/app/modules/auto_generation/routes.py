@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
-from typing import Dict
+from fastapi import APIRouter, HTTPException, status, Depends
+from typing import Dict, List
 import logging
-
+import json
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.auto_generation.schema import (
     GenerateIntroRequest,
     GenerateIntroResponse,
 )
+from app.modules.auto_generation.service_definations import ParseDefinitionsService
+from app.modules.auto_generation.models import Definition
 
 # Create router
 router = APIRouter(prefix="/auto-generation", tags=["auto-generation"])
@@ -221,6 +223,18 @@ async def delete_project_intro_by_hash(repo_hash: str) -> Dict:
         raise
     except Exception as e:
         logger.error(f"Unexpected error in delete_project_intro_by_hash: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+@router.get("/definitions/{repo_hash}")
+async def get_definitions(repo_hash: str, parse_definitions: ParseDefinitionsService = Depends(ParseDefinitionsService)) -> List[Dict]:
+    try:
+        definitions = parse_definitions.get_all_node_short_info(repo_hash)
+        return definitions
+    except Exception as e:
+        logger.error(f"Unexpected error in get_definitions: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",

@@ -1,6 +1,32 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Literal
 from datetime import datetime
+
+
+class MentionedDefinition(BaseModel):
+    """Schema for a mentioned definition in chat messages."""
+    node_name: str = Field(
+        ...,
+        description="Name of the node (function, class, or file)",
+        example="Node1"
+    )
+    file_name: str = Field(
+        ...,
+        description="Name of the file containing the definition",
+        example="file1.py"
+    )
+    start_end_lines: List[int] = Field(
+        ...,
+        description="Start and end line numbers of the definition",
+        example=[1, 10],
+        min_items=2,
+        max_items=2
+    )
+    node_type: Literal['file', 'class', 'function'] = Field(
+        ...,
+        description="Type of the node",
+        example="file"
+    )
 
 
 class ChatQaRequest(BaseModel):
@@ -43,6 +69,11 @@ class ChatQaRequest(BaseModel):
         description="Identifier of the user initiating the chat",
         example="1234567890123456",
         min_length=1,
+    )
+    mentioned_definations: Optional[List[MentionedDefinition]] = Field(
+        None,
+        description="Optional list of mentioned definitions",
+        example=[{"node_name": "Node1", "file_name": "file1.py", "start_end_lines": [1, 10], "node_type": "file"}],
     )
 
 

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List, Literal
 
 
 class ProjectIntroModel(BaseModel):
@@ -13,5 +14,22 @@ class ProjectIntroModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Update timestamp")
 
+    class Config:
+        json_encoders = {datetime: lambda v: v.isoformat()}
+
+
+class Definition(BaseModel):
+    # pydantic class
+    node_type:Literal["file", "class", "function"] = Field(description="The type of the definition")
+    node_name: str = Field(description="The name of the definition")
+    code_snippet:str = Field(description="The code snippet of the definition")
+    start_end_lines:List[int] = Field(description="The start and end lines of the definition")
+    file_name: str = Field(description="The name of the file")
+
+class Definitions(BaseModel):
+    definitions: List[Definition] = Field(description="The definitions of the project")
+    repo_hash: str = Field(description="The hash of the project repository, created from repo_path")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Update timestamp")
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}

@@ -6,6 +6,7 @@ export interface ChatQaRequest {
   diagramMode?: boolean;
   thinkLevel?: 'simple' | 'detailed';
   userId: string;
+  mentionedDefinations?: Array<{node_name: string, file_name: string, start_end_lines: number[], node_type: 'file' | 'class' | 'function'}>;
 }
 
 export interface ChatQaResponse {

@@ -4,7 +4,7 @@ from typing import List, Dict
 import json
 from clients import open_router_client
 from app.modules.auto_generation.service import AutoGenerationService
-
+from app.modules.auto_generation.service_definations import ParseDefinitionsService
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 auto_gen_service = AutoGenerationService()
-
+parse_definations = ParseDefinitionsService()
 
 TOOLS = [
     {
@@ -241,6 +241,25 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
     logger.info(f"Agentic loop completed after {iteration_count} iterations")
     return messages[-1]["content"]
 
+
+def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: str):
+    definations_full_info = parse_definations.get_all_node_full_info(repo_hash)
+    additional_info = ""
+    additional_info += f"""
+    The following are the definations of the mentioned code file, classes or functions mentioned in the user message:\n\n
+    """
+    for mentioned_defination in mentioned_definations:
+        for definations in definations_full_info:
+            if definations['node_name'] == mentioned_defination.node_name and definations['file_name'] == mentioned_defination.file_name and definations["start_end_lines"][0] == mentioned_defination.start_end_lines[0] and definations["start_end_lines"][1] == mentioned_defination.start_end_lines[1] and definations["node_type"] == mentioned_defination.node_type:
+                additional_info += f""" \n\n
+                The code snippet of @{mentioned_defination.node_name} which is mentioned above is:
+                ```
+                {definations['code_snippet']}
+                ```\n\n
+                """
+                break
+    # message = message.replace(f"@{definations['node_name']}", f"@{definations['node_name']}")
+    return message + additional_info
 
 # if __name__ == "__main__":
 #     _messages = [

@@ -11,12 +11,16 @@ import { ChatInput } from '@/component/chat/ChatInput';
 import { ChatHistory } from '@/component/chat/ChatHistory';
 import { useChat } from '@/hooks/useChat';
 import { useMermaid } from '@/hooks/useMermaid';
+import { useParams } from 'next/navigation';
 
 interface ChatPageProps {
   pageId?: string;
 }
 
 export default function ChatPage({ pageId }: ChatPageProps = {}) {
+  const params = useParams();
+  const repoId = params.repoId as string;
+
   const {
     messages,
     inputValue,
@@ -151,6 +155,7 @@ export default function ChatPage({ pageId }: ChatPageProps = {}) {
             onToggleThinkLevel={() => setThinkLevel(t => (t === 'simple' ? 'detailed' : 'simple'))}
             canvasOpen={canvasOpen}
             hasMessages={messages.length > 0}
+            repoId={repoId}
           />
         </div>
       </div>

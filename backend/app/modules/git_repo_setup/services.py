@@ -32,6 +32,13 @@ class GitRepoSetupService:
             repo_hash = self._generate_repo_hash(github_url)
             dest = os.path.join(target_base, repo_hash)
             os.makedirs(target_base, exist_ok=True)
+            # checking in db if the repo already exists
+            repo_intro = self.auto_generation_service.get_project_intro_by_hash(
+                repo_hash
+            )
+            if repo_intro is not None:
+                return repo_intro
+
             if os.path.exists(dest):
                 # If the repo already exists on disk, return the stored/generated
                 # project metadata from the auto-generation service so the API

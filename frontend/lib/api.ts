@@ -141,6 +141,7 @@ export const chatQaApi = {
         // think level controls how the model reasons: 'simple' or 'detailed'
         think_level: (data as any).thinkLevel ?? (data as any).think_level ?? 'simple',
         user_id: (data as any).userId ?? (data as any).user_id,
+        mentioned_definations: (data as any).mentionedDefinations ?? (data as any).mentioned_definations,
       }),
     });
   },
@@ -238,6 +239,13 @@ const mermaidValidationResponseSchema = z.object({
 
 export type MermaidValidationResponse = z.infer<typeof mermaidValidationResponseSchema>;
 
+export const autoGenerationApi = {
+  // Get definitions for a repository
+  getDefinitions: async (repoHash: string): Promise<any[]> => {
+    return apiRequest(`/auto-generation/definitions/${encodeURIComponent(repoHash)}`);
+  },
+};
+
 export const mermaidApi = {
   /**
    * Validate Mermaid diagram syntax
@@ -246,8 +254,8 @@ export const mermaidApi = {
    */
   validate: async (mermaidCode: string): Promise<MermaidValidationResponse> => {
     // Call Next.js API route directly (not backend API)
-    const frontendUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
+    const frontendUrl = typeof window !== 'undefined'
+      ? window.location.origin
       : process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://localhost:3000';
     
     const response = await fetch(`${frontendUrl}/api/mermaid/validate`, {
