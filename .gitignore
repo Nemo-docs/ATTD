@@ -86,7 +86,7 @@ next-env.d.ts
 
 chainlite/
 
-
+# test files
 test/
 trash/
 __pycache__/

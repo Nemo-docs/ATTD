@@ -16,6 +16,13 @@ from app.modules.chat_qa.routes import router as chat_qa_router
 from app.modules.git_repo_setup import routes as git_repo_routes
 from app.modules.user_module.routes import router as user_router
 
+# Import custom logger
+from utils.log_util import logger_instance 
+from dotenv import load_dotenv
+load_dotenv()
+logger_instance.info("logging initialized") 
+
+
 # Set up logging to write to logs.txt
 logging.basicConfig(
     # filename=f"logs-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.txt",

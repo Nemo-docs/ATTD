@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from clients import open_router_client, mongodb_client
 from app.modules.auto_generation.models import ProjectIntroModel
 from utils.mermaid_generation_validation import MermaidGenerationValidator
-
+from app.modules.git_repo_setup.management_services import GitRepoManagementService
 
 load_dotenv()
 
@@ -39,6 +39,7 @@ class AutoGenerationService:
         )
 
         self.mermaid_validator = MermaidGenerationValidator(logger=self.logger)
+        self.git_repo_management_service = GitRepoManagementService()
 
         # Database setup
         self.db_name = os.getenv("MONGODB_DATABASE", "attd_db")
@@ -67,8 +68,12 @@ class AutoGenerationService:
             # Step 1: Check if repo already exists in database
             self.logger.info(f"Checking if project intro exists for repo: {repo_hash}")
             existing_intro = self._get_project_intro(repo_hash)
+            
+            # Check if repo is updated
+            git_repo_updated = self.git_repo_management_service.check_git_repo_updated(github_url)
+            latest_commit_hash = git_repo_updated.get("latest_commit_hash")
 
-            if existing_intro:
+            if existing_intro and git_repo_updated.get("exists") and git_repo_updated.get("updated"):
                 self.logger.info(f"Found existing intro for repo: {repo_hash}")
                 # Return existing data with additional metadata
                 return {
@@ -91,7 +96,7 @@ class AutoGenerationService:
             self.logger.info(
                 f"Generating new cursory explanation for repo: {repo_hash}"
             )
-            cursory_explanation = self._generate_cursory_explanation(repo_hash)
+            cursory_explanation = self._generate_cursory_explanation(github_url, repo_hash, latest_commit_hash)
 
             if cursory_explanation.startswith("Error:"):
                 return f"Error in generate_intro: {cursory_explanation}"
@@ -151,17 +156,29 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                     "Mermaid diagram validation failed after max iterations. "
                     "Using generated diagram anyway."
                 )
-
+       
             # Step 6: Create project intro model and save to database
-            project_intro_model = ProjectIntroModel(
-                repo_path=os.getenv("PARENT_DIR") + "/" + repo_hash,
-                repo_hash=repo_hash,
-                project_intro=project_intro,
-                project_data_flow_diagram=project_diagram,
-                project_cursory_explanation=cursory_explanation,
-                github_url=github_url,
-                name=name,
-            )
+            
+            # if exists fetch the existing one, update fields and save 
+            if existing_intro:
+                existing_intro.update({
+                    "project_intro": project_intro,
+                    "project_data_flow_diagram": project_diagram,
+                    "project_cursory_explanation": cursory_explanation,
+                    "updated_at": datetime.utcnow(),
+                })
+                project_intro_model = ProjectIntroModel(**existing_intro)
+
+            else:
+                project_intro_model = ProjectIntroModel(
+                    repo_path=os.getenv("PARENT_DIR") + "/" + repo_hash,
+                    repo_hash=repo_hash,
+                    project_intro=project_intro,
+                    project_data_flow_diagram=project_diagram,
+                    project_cursory_explanation=cursory_explanation,
+                    github_url=github_url,
+                    name=name,
+                )
 
             # Convert to dict for database storage
             project_data = project_intro_model.dict()
@@ -191,33 +208,81 @@ Format the response as a coherent introduction that someone unfamiliar with the 
             self.logger.error(f"Error generating intro: {str(e)}")
             return {"error": str(e), "repo_hash": repo_hash}
 
-    def _generate_cursory_explanation(self, repo_hash: str) -> str:
+    def _generate_cursory_explanation(self, github_url: str, repo_hash: str, latest_commit_hash: str) -> str:
         """
         Input: Repo hash
         Output: Tree hierarchy string of file names with their roles (cursory explanation)
         """
         try:
             repo_path = os.getenv("PARENT_DIR") + "/" + repo_hash
-            # Step 1: Get all files excluding common irrelevant directories
-            useful_files = self._get_useful_files(repo_path)
 
-            # Step 2: Calculate total tokens
-            total_tokens = self._calculate_total_tokens(useful_files)
-            if total_tokens > self.max_tokens:
-                raise ValueError(
-                    f"Total tokens ({total_tokens}) exceed 50M limit. Cannot process repository."
-                )
-            self.logger.info(f"Total tokens: {total_tokens}")
-            # Step 3: Organize files in logical order
-            organized_files = self._organize_files_logically(useful_files)
-            self.logger.info(f"Organized files: {organized_files}")
-            # Step 4: Generate role descriptions
-            file_roles = self._generate_file_roles(organized_files)
-            self.logger.info(f"File roles: {file_roles}")
-            # Step 5: Convert to tree hierarchy
-            tree_output = self._create_tree_hierarchy(repo_path, file_roles)
-            self.logger.info(f"Tree output: {tree_output}")
-            return tree_output
+            repo_data = self.git_repo_management_service.get_updated_repo_by_hash(repo_hash)
+
+            if repo_data.get("not_found"):
+                # Step 1: Get all files excluding common irrelevant directories
+                useful_files = self._get_useful_files(repo_path)
+                
+                # Step 2: Calculate total tokens
+                total_tokens = self._calculate_total_tokens(useful_files)
+                if total_tokens > self.max_tokens:
+                    raise ValueError(
+                        f"Total tokens ({total_tokens}) exceed 50M limit. Cannot process repository."
+                    )
+                self.logger.info(f"Total tokens: {total_tokens}")
+                # Step 3: Organize files in logical order
+                organized_files = self._organize_files_logically(useful_files)
+                self.logger.info(f"Organized files: {organized_files}")
+                # Step 4: Generate role descriptions
+                file_roles = self._generate_file_roles(organized_files)
+                self.logger.info(f"File roles: {file_roles}")
+
+                # Step 5: Save git_repo document
+                self.git_repo_management_service.upsert_git_repo_model(github_url, repo_hash, repo_path, latest_commit_hash, file_roles)
+                self.logger.info(f"Saved git_repo document for repo: {repo_hash}")
+
+                # Step 6: Convert to tree hierarchy
+                tree_output = self._create_tree_hierarchy(repo_path, file_roles)
+                self.logger.info(f"Tree output: {tree_output}")
+                return tree_output
+
+            if repo_data.get("changed"):
+                repo_path = repo_data["local_path"]
+                
+                # Step 1: Get all files excluding common irrelevant directories
+                useful_files = self._get_useful_files(repo_path)
+                
+                # Step 2: Calculate total tokens
+                total_tokens = self._calculate_total_tokens(useful_files)
+                if total_tokens > self.max_tokens:
+                    raise ValueError(
+                        f"Total tokens ({total_tokens}) exceed 50M limit. Cannot process repository."
+                    )
+                self.logger.info(f"Total tokens: {total_tokens}")
+                # Step 3: Organize files in logical order
+                organized_files = self._organize_files_logically(useful_files)
+                self.logger.info(f"Organized files: {organized_files}")
+                
+                merkle_diff = repo_data.get("merkle_diff")
+                repo_model = repo_data.get("repo_model")
+
+                # Step 4: Filter files to only include changed/new files from merkle_diff
+                changed_files = self._get_changed_files_from_merkle_diff(merkle_diff, repo_path)
+                files_to_process = [f for f in organized_files if f in changed_files]
+                
+                self.logger.info(f"Changed files count: {len(changed_files)}")
+                self.logger.info(f"Files to process for role generation: {len(files_to_process)}")
+                
+                # Step 5: Generate role descriptions only for changed files
+                file_roles = self._generate_file_roles(files_to_process)
+                self.logger.info(f"File roles: {file_roles}")
+                
+                # Step 6: Update git repo document
+                self.git_repo_management_service.update_git_repo_model(repo_path, repo_model, merkle_diff, file_roles)
+                
+                # Step 7: Convert to tree hierarchy
+                tree_output = self._create_tree_hierarchy(repo_path, file_roles)
+                self.logger.info(f"Tree output: {tree_output}")
+                return tree_output
 
         except Exception as e:
             return f"Error: {str(e)}"
@@ -420,6 +485,49 @@ Format the response as a coherent introduction that someone unfamiliar with the 
         sorted_files = sorted(file_paths, key=get_file_priority)
 
         return sorted_files
+
+    def _get_changed_files_from_merkle_diff(self, merkle_diff: Dict, repo_path: str) -> set:
+        """
+        Extract changed file paths from merkle_diff and convert them to absolute paths.
+        
+        Args:
+            merkle_diff: Dictionary containing file changes (added, modified, removed)
+            repo_path: Absolute path to the repository root
+            
+        Returns:
+            Set of absolute file paths that have been added or modified
+        """
+        changed_files = set()
+        
+        if not merkle_diff or "files" not in merkle_diff:
+            return changed_files
+        
+        files_dict = merkle_diff.get("files", {})
+        
+        # Get added files
+        added_files = files_dict.get("added", [])
+        for file_info in added_files:
+            relative_path = file_info.get("path", "")
+            if relative_path:
+                # Convert relative path to absolute path
+                absolute_path = os.path.join(repo_path, relative_path)
+                # Normalize the path
+                absolute_path = os.path.normpath(absolute_path)
+                changed_files.add(absolute_path)
+        
+        # Get modified files
+        modified_files = files_dict.get("modified", [])
+        for file_info in modified_files:
+            relative_path = file_info.get("path", "")
+            if relative_path:
+                # Convert relative path to absolute path
+                absolute_path = os.path.join(repo_path, relative_path)
+                # Normalize the path
+                absolute_path = os.path.normpath(absolute_path)
+                changed_files.add(absolute_path)
+        
+        self.logger.info(f"Extracted {len(changed_files)} changed files from merkle_diff")
+        return changed_files
 
     def _generate_file_roles(self, file_paths: List[str]) -> Dict[str, str]:
         """Generate brief role descriptions for each file using OpenAI.
