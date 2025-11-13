@@ -231,7 +231,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 self.logger.info(f"Total tokens: {total_tokens}")
                 # Step 3: Organize files in logical order
                 organized_files = self._organize_files_logically(useful_files)
-                self.logger.info(f"Organized files: {organized_files}")
+                # self.logger.info(f"Organized files: {organized_files}")
                 # Step 4: Generate role descriptions
                 file_roles = self._generate_file_roles(organized_files)
                 self.logger.info(f"File roles: {file_roles}")
@@ -242,7 +242,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
 
                 # Step 6: Convert to tree hierarchy
                 tree_output = self._create_tree_hierarchy(repo_path, file_roles)
-                self.logger.info(f"Tree output: {tree_output}")
+                # self.logger.info(f"Tree output: {tree_output}")
                 return tree_output
 
             if repo_data.get("changed"):
@@ -260,7 +260,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 self.logger.info(f"Total tokens: {total_tokens}")
                 # Step 3: Organize files in logical order
                 organized_files = self._organize_files_logically(useful_files)
-                self.logger.info(f"Organized files: {organized_files}")
+                # self.logger.info(f"Organized files: {organized_files}")
                 
                 merkle_diff = repo_data.get("merkle_diff")
                 repo_model = repo_data.get("repo_model")
@@ -281,7 +281,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 
                 # Step 7: Convert to tree hierarchy
                 tree_output = self._create_tree_hierarchy(repo_path, file_roles)
-                self.logger.info(f"Tree output: {tree_output}")
+                # self.logger.info(f"Tree output: {tree_output}")
                 return tree_output
 
         except Exception as e:
@@ -614,8 +614,8 @@ Return a JSON object where each key is a filename and each value is a brief desc
                 )
 
                 content = response.choices[0].message.content.strip()
-                self.logger.info(f"Prompt: {prompt}")
-                self.logger.info(f"Content: {content}")
+                # self.logger.info(f"Prompt: {prompt}")
+                # self.logger.info(f"Content: {content}")
 
                 try:
                     import json
@@ -624,7 +624,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
                     local_roles[file_path] = content["file_description"]
                 except json.JSONDecodeError as e:
                     print(f"Failed to parse JSON response: {e}")
-                    print(f"Response content: {content}")
+                    # print(f"Response content: {content}")
 
             except Exception as e:
                 # Log but do not raise so other batches can complete

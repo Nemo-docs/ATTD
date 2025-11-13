@@ -11,7 +11,6 @@ from urllib.parse import urlparse
 from clients import mongodb_client
 from utils.s3_utils import s3, zip_folder, upload_file_to_s3, download_and_extract_zip
 from utils.log_util import logger_instance
-from app.modules.git_repo_setup.services import GitRepoSetupService
 from app.modules.git_repo_setup.models import (
     GitRepoModel,
     MerkleTreeData,
@@ -372,6 +371,14 @@ class GitRepoManagementService:
             logger_instance.warning(f"Could not create index: {e}")
 
 
+    def _generate_repo_hash(self, github_url: str) -> str:
+        return hashlib.sha256(github_url.encode()).hexdigest()
+
+
+    def _repo_name_from_url(self, github_url: str) -> str:
+        return github_url.split("/")[-1].replace(".git", "")
+
+
     def save_git_repo_db(self, git_repo: GitRepoModel) -> Dict[str, Any]:
         """
         Save a GitRepoModel into the MongoDB git_repos collection.
@@ -431,21 +438,18 @@ class GitRepoManagementService:
         """
         try:
             # Compute repo_hash from github_url
-            repo_hash = GitRepoSetupService._generate_repo_hash(github_url)
+            repo_hash = self._generate_repo_hash(github_url)
             
             # Check if the repository exists
             filter_query = {"repo_hash": repo_hash}
             result = self.git_repos_collection.find_one(filter_query)
-            
-            # Check if the repository is updated
-            updated = False
 
             if not result:
-                return {"exists": False, "updated": False}
+                return {"exists": False, "updated": False} # updated variable is same as up_to_date
 
             fetched_commit_hash = self.get_latest_commit_hash(github_url)
-            updated = result["latest_commit_hash"] == fetched_commit_hash
-            response = {"exists": True, "updated": updated, "latest_commit_hash": fetched_commit_hash}
+            up_to_date = result["latest_commit_hash"] == fetched_commit_hash
+            response = {"exists": True, "updated": up_to_date, "latest_commit_hash": fetched_commit_hash}
             return response
         
         except Exception as e:
@@ -467,9 +471,9 @@ class GitRepoManagementService:
         """
         try:
             # Compute repo_hash from github_url
-            repo_hash = GitRepoSetupService._generate_repo_hash(github_url)
+            repo_hash = self._generate_repo_hash(github_url)
             # Derive repo_name from URL
-            repo_name = GitRepoSetupService._repo_name_from_url(github_url)
+            repo_name = self._repo_name_from_url(github_url)
 
             # Resolve target_base fallback
             target_base: str = os.getenv("PARENT_DIR")
@@ -482,7 +486,11 @@ class GitRepoManagementService:
 
             # Clone repo if it doesn't exist
             if not os.path.exists(dest):
-                subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", github_url, dest], check=True)
+                try:
+                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", github_url, dest], check=True)
+                except subprocess.CalledProcessError:
+                    # If main branch doesn't exist, try master branch
+                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "master", github_url, dest], check=True)
 
             return {
                 "repo_name": repo_name,
@@ -496,21 +504,28 @@ class GitRepoManagementService:
 
     def get_latest_commit_hash(self, github_url: str) -> str:
         """
-        Return the latest commit SHA on the 'main' branch for a given GitHub repository URL.
+        Return the latest commit SHA on the default branch (main or master) for a given GitHub repository URL.
         
         Args:
             github_url: GitHub repository URL
 
         Returns:
-            Latest commit SHA on the 'main' branch or None if failed
+            Latest commit SHA on the default branch or None if failed
         """
         # Extract owner and repo from URL
         path_parts = urlparse(github_url).path.strip("/").split("/")
 
         owner, repo = path_parts[:2]
+        
+        # Try main branch first
         api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/main"
-
         response = httpx.get(api_url)
+        
+        # If main branch doesn't exist (404), try master branch
+        if response.status_code != 200:
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/master"
+            response = httpx.get(api_url)
+        
         response.raise_for_status()
 
         data = response.json()
@@ -877,7 +892,7 @@ class GitRepoManagementService:
             existed = existing_repo is not None
             
             # Derive repo_name from github_url
-            repo_name = GitRepoSetupService._repo_name_from_url(github_url)
+            repo_name = self._repo_name_from_url(github_url)
             
             # Create or update GitRepoModel
             git_repo = GitRepoModel(
