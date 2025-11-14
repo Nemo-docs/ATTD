@@ -137,8 +137,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                     },
                     {"role": "user", "content": intro_prompt},
                 ],
-                max_tokens=2000,
-                temperature=0.7,
+                max_tokens=50000,
             )
 
             project_intro = intro_response.choices[0].message.content.strip()
@@ -234,7 +233,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 # self.logger.info(f"Organized files: {organized_files}")
                 # Step 4: Generate role descriptions
                 file_roles = self._generate_file_roles(organized_files)
-                self.logger.info(f"File roles: {file_roles}")
+                # self.logger.info(f"File roles: {file_roles}")
 
                 # Step 5: Save git_repo document
                 self.git_repo_management_service.upsert_git_repo_model(github_url, repo_hash, repo_path, latest_commit_hash, file_roles)
@@ -274,14 +273,25 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 
                 # Step 5: Generate role descriptions only for changed files
                 file_roles = self._generate_file_roles(files_to_process)
-                self.logger.info(f"File roles: {file_roles}")
+                # self.logger.info(f"File roles: {file_roles}")
                 
                 # Step 6: Update git repo document
-                self.git_repo_management_service.update_git_repo_model(repo_path, repo_model, merkle_diff, file_roles)
+                update_result = self.git_repo_management_service.update_git_repo_model(repo_path, repo_model, merkle_diff, file_roles)
                 
-                # Step 7: Convert to tree hierarchy
-                tree_output = self._create_tree_hierarchy(repo_path, file_roles)
+                # Step 7: Convert to tree hierarchy using aggregated roles from updated repo model
+                updated_repo_model = update_result.get("updated_repo_model", repo_model) if isinstance(update_result, dict) else repo_model
+                all_roles = self.git_repo_management_service.get_all_role_map(updated_repo_model, repo_path)
+                tree_output = self._create_tree_hierarchy(repo_path, all_roles)
                 # self.logger.info(f"Tree output: {tree_output}")
+                return tree_output
+            else:
+                # Repo unchanged: build tree from existing roles
+                repo_path = repo_data["local_path"]
+                repo_model = repo_data.get("repo_model")
+                self.logger.info(f"Repo unchanged for {repo_hash}. Building tree from stored roles.")
+                all_roles = self.git_repo_management_service.get_all_role_map(repo_model, repo_path)
+                self.logger.info(f"Aggregated roles count: {len(all_roles)}")
+                tree_output = self._create_tree_hierarchy(repo_path, all_roles)
                 return tree_output
 
         except Exception as e:

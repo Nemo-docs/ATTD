@@ -17,8 +17,15 @@ class GitRepoSetupService:
         self.git_repo_management_service = GitRepoManagementService()
         self.logger = logging.getLogger(__name__)
 
+    def _normalize_github_url(self, github_url: str) -> str:
+        url = github_url.rstrip('/')
+        if not url.endswith('.git'):
+            url = url + '.git'
+        return url
+
     def _generate_repo_hash(self, github_url: str) -> str:
-        return hashlib.sha256(github_url.encode()).hexdigest()
+        normalized = self._normalize_github_url(github_url)
+        return hashlib.sha256(normalized.encode()).hexdigest()
 
     def _repo_name_from_url(self, github_url: str) -> str:
         return github_url.split("/")[-1].replace(".git", "")
@@ -30,10 +37,8 @@ class GitRepoSetupService:
 
         Raises subprocess.CalledProcessError on failure.
         """
-        # Clean URL: remove trailing slashes and ensure .git suffix
-        github_url = github_url.rstrip('/')
-        if not github_url.endswith('.git'):
-            github_url = github_url + '.git'
+        # Normalize URL to canonical .git variant
+        github_url = self._normalize_github_url(github_url)
         try:
             self.logger.info(f"Cloning repo to disk: {github_url}")
             repo_hash = self._generate_repo_hash(github_url)
@@ -106,10 +111,8 @@ class GitRepoSetupService:
         Returns a dict with repo data or an error dict.
         """
         
-        # Clean URL: remove trailing slashes and ensure .git suffix
-        github_url = github_url.rstrip('/')
-        if not github_url.endswith('.git'):
-            github_url = github_url + '.git'
+        # Normalize URL to canonical .git variant
+        github_url = self._normalize_github_url(github_url)
         
         result = self.git_repo_management_service.check_git_repo_updated(github_url)
 

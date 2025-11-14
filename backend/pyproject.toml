@@ -20,5 +20,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "debugpy>=1.8.17",
     "tinydb>=4.8.2",
 ]

@@ -371,12 +371,22 @@ class GitRepoManagementService:
             logger_instance.warning(f"Could not create index: {e}")
 
 
+    def _normalize_github_url(self, github_url: str) -> str:
+        """Return canonical form of a GitHub repo URL: strip trailing slash and ensure .git suffix."""
+        url = github_url.rstrip("/")
+        if not url.endswith(".git"):
+            url = url + ".git"
+        return url
+
     def _generate_repo_hash(self, github_url: str) -> str:
-        return hashlib.sha256(github_url.encode()).hexdigest()
+        normalized = self._normalize_github_url(github_url)
+        return hashlib.sha256(normalized.encode()).hexdigest()
 
 
     def _repo_name_from_url(self, github_url: str) -> str:
-        return github_url.split("/")[-1].replace(".git", "")
+        path = urlparse(github_url).path.strip("/")
+        name = path.split("/")[-1]
+        return name.replace(".git", "")
 
 
     def save_git_repo_db(self, git_repo: GitRepoModel) -> Dict[str, Any]:
@@ -437,17 +447,20 @@ class GitRepoManagementService:
             
         """
         try:
-            # Compute repo_hash from github_url
-            repo_hash = self._generate_repo_hash(github_url)
+            # Normalize URL to canonical .git variant and compute repo_hash
+            normalized_url = self._normalize_github_url(github_url)
+            repo_hash = self._generate_repo_hash(normalized_url)
+            
+            # Fetch latest commit hash from GitHub unconditionally
+            fetched_commit_hash = self.get_latest_commit_hash(normalized_url)
             
             # Check if the repository exists
             filter_query = {"repo_hash": repo_hash}
             result = self.git_repos_collection.find_one(filter_query)
-
+    
             if not result:
-                return {"exists": False, "updated": False} # updated variable is same as up_to_date
-
-            fetched_commit_hash = self.get_latest_commit_hash(github_url)
+                return {"exists": False, "updated": False, "latest_commit_hash": fetched_commit_hash}  # updated variable is same as up_to_date
+    
             up_to_date = result["latest_commit_hash"] == fetched_commit_hash
             response = {"exists": True, "updated": up_to_date, "latest_commit_hash": fetched_commit_hash}
             return response
@@ -470,10 +483,11 @@ class GitRepoManagementService:
             or error key if failed
         """
         try:
-            # Compute repo_hash from github_url
-            repo_hash = self._generate_repo_hash(github_url)
+            # Normalize URL to canonical .git variant and compute repo_hash
+            normalized_url = self._normalize_github_url(github_url)
+            repo_hash = self._generate_repo_hash(normalized_url)
             # Derive repo_name from URL
-            repo_name = self._repo_name_from_url(github_url)
+            repo_name = self._repo_name_from_url(normalized_url)
 
             # Resolve target_base fallback
             target_base: str = os.getenv("PARENT_DIR")
@@ -487,10 +501,10 @@ class GitRepoManagementService:
             # Clone repo if it doesn't exist
             if not os.path.exists(dest):
                 try:
-                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", github_url, dest], check=True)
+                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "main", normalized_url, dest], check=True)
                 except subprocess.CalledProcessError:
                     # If main branch doesn't exist, try master branch
-                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "master", github_url, dest], check=True)
+                    subprocess.run(["git", "clone", "--depth", "1", "--branch", "master", normalized_url, dest], check=True)
 
             return {
                 "repo_name": repo_name,
@@ -516,20 +530,29 @@ class GitRepoManagementService:
         path_parts = urlparse(github_url).path.strip("/").split("/")
 
         owner, repo = path_parts[:2]
+        # Handle URLs with .git suffix for API compatibility
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        
+        # Set headers to get only the commit SHA as plain text
+        headers = {
+            "Accept": "application/vnd.github.VERSION.sha"
+        }
         
         # Try main branch first
         api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/main"
-        response = httpx.get(api_url)
+        response = httpx.get(api_url, headers=headers)
         
         # If main branch doesn't exist (404), try master branch
         if response.status_code != 200:
             api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/master"
-            response = httpx.get(api_url)
+            response = httpx.get(api_url, headers=headers)
         
         response.raise_for_status()
 
-        data = response.json()
-        return data.get("sha")
+        # Return the plain text SHA (strip whitespace)
+        return response.text.strip()
+
 
 
     def upload_repo_s3(self, local_path: str, s3_key: str) -> Dict[str, Any]:
@@ -665,6 +688,64 @@ class GitRepoManagementService:
             return {"error": f"Failed to insert file role: {str(e)}"}
 
 
+    def _preserve_unchanged_roles(self, old_tree: MerkleTreeData, new_tree: MerkleTreeData, merkle_diff: Dict[str, Any]) -> None:
+        """
+        Preserve roles for unchanged files and directories when updating the merkle tree.
+        Only updates the .role field; does not modify hashes or children.
+        Does nothing if merkle_diff is None or improperly structured.
+        """
+        try:
+            if not merkle_diff:
+                return
+
+            files_diff = merkle_diff.get("files") or {}
+            dirs_diff = merkle_diff.get("directories") or {}
+
+            # Build changed path sets
+            changed_file_paths = set()
+            for k in ("added", "modified", "removed"):
+                items = files_diff.get(k) or []
+                for it in items:
+                    path = it.get("path")
+                    if path:
+                        changed_file_paths.add(path)
+
+            changed_dir_paths = set()
+            for k in ("added", "modified", "removed"):
+                items = dirs_diff.get(k) or []
+                for it in items:
+                    path = it.get("path")
+                    if path:
+                        changed_dir_paths.add(path)
+
+            # Map old roles
+            old_file_roles = {record.path: record.role for record in (old_tree.files or [])}
+            old_dir_roles = {record.path: record.role for record in (old_tree.directories or [])}
+
+            preserved_files = 0
+            preserved_dirs = 0
+
+            # Preserve roles for files
+            for record in (new_tree.files or []):
+                if record.path not in changed_file_paths:
+                    prev_role = old_file_roles.get(record.path)
+                    if prev_role is not None:
+                        record.role = prev_role
+                        preserved_files += 1
+
+            # Preserve roles for directories
+            for record in (new_tree.directories or []):
+                if record.path not in changed_dir_paths:
+                    prev_role = old_dir_roles.get(record.path)
+                    if prev_role is not None:
+                        record.role = prev_role
+                        preserved_dirs += 1
+
+            logger_instance.info(f"Preserved roles - files: {preserved_files}, directories: {preserved_dirs}")
+        except Exception as e:
+            # Be safe: never block updates due to errors here
+            logger_instance.warning(f"_preserve_unchanged_roles skipped due to error: {e}")
+
     def get_updated_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
         """
         Get updated repository by comparing latest commit hash with stored version.
@@ -700,7 +781,8 @@ class GitRepoManagementService:
             repo_model = GitRepoModel(**repo_doc)
             
             # Get latest commit hash from GitHub
-            remote_latest_commit = self.get_latest_commit_hash(repo_model.github_url)
+            normalized_url = self._normalize_github_url(repo_model.github_url)
+            remote_latest_commit = self.get_latest_commit_hash(normalized_url)
             
             if not remote_latest_commit:
                 return {"error": "Failed to fetch latest commit hash from GitHub"}
@@ -747,17 +829,14 @@ class GitRepoManagementService:
                 logger_instance.info(f"Changes detected for repo {repo_hash}. Cloning fresh...")
                 
                 # Clone the repo
-                clone_result = self.clone_repo(repo_model.github_url)
+                clone_result = self.clone_repo(normalized_url)
                 if "error" in clone_result:
                     return clone_result
                 
                 new_local_path = clone_result["local_path"]
                 
-                # Initialize merkle service
-                merkle_service = MerkleHashService()
-                
                 # Compute new merkle tree
-                new_root_hash, new_file_records, new_dir_records = merkle_service.compute_merkle_tree(new_local_path)
+                new_root_hash, new_file_records, new_dir_records = self.merkle_service.compute_merkle_tree(new_local_path)
                 
                 # Create new merkle tree data
                 new_merkle_tree = MerkleTreeData(
@@ -773,7 +852,7 @@ class GitRepoManagementService:
                 if repo_model.merkle_tree:
                     old_merkle_dict = repo_model.merkle_tree.model_dump()
                     new_merkle_dict = new_merkle_tree.model_dump()
-                    merkle_diff = merkle_service.compare_merkle_trees(old_merkle_dict, new_merkle_dict)
+                    merkle_diff = self.merkle_service.compare_merkle_trees(old_merkle_dict, new_merkle_dict)
                     logger_instance.info(f"Merkle diff computed: {merkle_diff['summary']}")
                 else:
                     logger_instance.info("No previous merkle tree found - treating as initial upload")
@@ -787,6 +866,9 @@ class GitRepoManagementService:
                 
                 # Update repo model
                 repo_model.latest_commit_hash = remote_latest_commit
+                # Preserve roles for unchanged paths before replacing merkle tree
+                if repo_model.merkle_tree and merkle_diff is not None:
+                    self._preserve_unchanged_roles(repo_model.merkle_tree, new_merkle_tree, merkle_diff)
                 repo_model.merkle_tree = new_merkle_tree
                 repo_model.local_path = new_local_path
                 repo_model.updated_at = datetime.utcnow()
@@ -826,9 +908,8 @@ class GitRepoManagementService:
             
         Returns:
             Dict with keys:
-                - upserted_id: MongoDB document ID if inserted (None if updated)
+                - upserted_repo: GitRepoModel inserted or updated
                 - existed: Boolean indicating if repo existed before upsert
-                - message: Success message
                 - error: error message if failed
         """
         try:
@@ -891,12 +972,13 @@ class GitRepoManagementService:
             existing_repo = self.git_repos_collection.find_one({"repo_hash": repo_hash})
             existed = existing_repo is not None
             
-            # Derive repo_name from github_url
-            repo_name = self._repo_name_from_url(github_url)
+            # Derive repo_name from canonical github_url (.git enforced)
+            normalized_github_url = self._normalize_github_url(github_url)
+            repo_name = self._repo_name_from_url(normalized_github_url)
             
             # Create or update GitRepoModel
             git_repo = GitRepoModel(
-                github_url=github_url,
+                github_url=normalized_github_url,
                 repo_hash=repo_hash,
                 repo_name=repo_name,
                 latest_commit_hash=latest_commit_hash,
@@ -915,9 +997,8 @@ class GitRepoManagementService:
             logger_instance.info(f"Repository {'updated' if existed else 'created'} successfully: {repo_hash}")
             
             return {
-                "upserted_id": save_result.get("upserted_id"),
+                "upserted_repo": git_repo,
                 "existed": existed,
-                "message": f"Repository {'updated' if existed else 'created'} successfully"
             }
             
         except Exception as e:
@@ -960,16 +1041,43 @@ class GitRepoManagementService:
             logger_instance.info(f"Converted {len(role_map)} file role mappings from absolute to relative paths")
             
             updated_count = 0
+
+            # Derive changed paths from merkle_diff; restrict role updates to changed/new paths
+            changed_file_paths = None
+            changed_dir_paths = None
+            if merkle_diff:
+                files_diff = merkle_diff.get("files") or {}
+                dirs_diff = merkle_diff.get("directories") or {}
+
+                changed_file_paths = set()
+                for k in ("added", "modified"):
+                    for item in files_diff.get(k, []):
+                        p = item.get("path")
+                        if p:
+                            changed_file_paths.add(p)
+
+                changed_dir_paths = set()
+                for k in ("added", "modified"):
+                    for item in dirs_diff.get(k, []):
+                        p = item.get("path")
+                        if p:
+                            changed_dir_paths.add(p)
             
-            # Update roles for files
+            # Update roles for files (only for changed/new paths unless merkle_diff is None)
             for file_record in new_repo_model.merkle_tree.files:
-                if file_record.path in role_map:
+                if (
+                    file_record.path in role_map
+                    and (changed_file_paths is None or file_record.path in changed_file_paths)
+                ):
                     file_record.role = role_map[file_record.path]
                     updated_count += 1
             
-            # Update roles for directories
+            # Update roles for directories (only for changed/new paths unless merkle_diff is None)
             for dir_record in new_repo_model.merkle_tree.directories:
-                if dir_record.path in role_map:
+                if (
+                    dir_record.path in role_map
+                    and (changed_dir_paths is None or dir_record.path in changed_dir_paths)
+                ):
                     dir_record.role = role_map[dir_record.path]
                     updated_count += 1
             
@@ -987,10 +1095,56 @@ class GitRepoManagementService:
             
             return {
                 "success": True,
-                "updated_count": updated_count,
+                "updated_repo_model": new_repo_model,
                 "message": f"Repository updated successfully with {updated_count} role assignments"
             }
             
         except Exception as e:
             logger_instance.error(f"Failed to update git repo model: {str(e)}")
             return {"error": f"Failed to update git repo model: {str(e)}"}
+
+    def get_all_role_map(self, repo_model: GitRepoModel, repo_path: str) -> Dict[str, str]:
+        """
+        Aggregate roles for all files and directories from the repository's merkle tree.
+
+        Args:
+            repo_model: GitRepoModel for the repository
+            repo_path: Absolute path to the repository root
+
+        Returns:
+            Dict mapping absolute paths to role strings for all entries where role is not None.
+        """
+        try:
+            # Allow passing of either a model instance or a dict
+            if isinstance(repo_model, dict):
+                try:
+                    repo_model = GitRepoModel(**repo_model)
+                except Exception as e:
+                    logger_instance.warning(f"get_all_role_map: could not coerce dict to GitRepoModel: {e}")
+                    return {}
+
+            if not repo_model or not repo_model.merkle_tree:
+                logger_instance.info("Aggregated roles - files: 0, directories: 0 (no merkle tree)")
+                return {}
+
+            roles: Dict[str, str] = {}
+            file_count = 0
+            dir_count = 0
+
+            for record in (repo_model.merkle_tree.files or []):
+                if record.role is not None:
+                    abs_path = os.path.normpath(os.path.join(repo_path, record.path))
+                    roles[abs_path] = record.role
+                    file_count += 1
+
+            for record in (repo_model.merkle_tree.directories or []):
+                if record.role is not None:
+                    abs_path = os.path.normpath(os.path.join(repo_path, record.path))
+                    roles[abs_path] = record.role
+                    dir_count += 1
+
+            logger_instance.info(f"Aggregated roles - files: {file_count}, directories: {dir_count}")
+            return roles
+        except Exception as e:
+            logger_instance.warning(f"get_all_role_map encountered error: {e}")
+            return {}
