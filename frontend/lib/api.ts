@@ -206,6 +206,14 @@ export const repoApi = {
   > => {
     return apiRequest(`/git-repo/${encodeURIComponent(repoHash)}`);
   },
+
+  // Update repository from GitHub
+  updateRepo: async (data: { github_url: string }): Promise<{ up_to_date: boolean }> => {
+    return apiRequest('/git-repo-update/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 const userModelSchema = z.object({

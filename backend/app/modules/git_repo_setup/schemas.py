@@ -29,3 +29,7 @@ class GetGitRepoResponse(BaseModel):
     error: Optional[str] = None
     github_url: Optional[HttpUrl] = None
     name: Optional[str] = None
+
+
+class UpdateGitRepoResponse(BaseModel):
+    up_to_date: bool

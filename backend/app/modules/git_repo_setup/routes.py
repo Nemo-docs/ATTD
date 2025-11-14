@@ -2,12 +2,15 @@ from fastapi import APIRouter, HTTPException
 from starlette import status
 import logging
 import traceback
-from .schemas import CreateGitRepoRequest, CreateGitRepoResponse, GetGitRepoResponse
+from .schemas import CreateGitRepoRequest, CreateGitRepoResponse, GetGitRepoResponse, UpdateGitRepoResponse
 from .services import GitRepoSetupService
+from .management_services import GitRepoManagementService
 
 router = APIRouter()
 
 git_repo_setup_service = GitRepoSetupService()
+git_repo_management_service = GitRepoManagementService()
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +50,22 @@ async def get_git_repo(repo_hash: str):
         raise
     except Exception as e:
         logger.error(f"Unexpected error in get_git_repo: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+@router.post("/git-repo-update/", response_model=UpdateGitRepoResponse)
+async def update_git_repo(payload: CreateGitRepoRequest):
+    """Update repository data by its github_url."""
+    try:
+        logger.info(f"Updating git repo for URL: {payload.github_url}")
+        
+        result = git_repo_setup_service.update_repo_by_url(str(payload.github_url))
+        
+        logger.info(f"{result}")
+        return result
+    except Exception as e:
+        logger.error(f"Unexpected error in update_git_repo: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )

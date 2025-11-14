@@ -1,10 +1,11 @@
 "use client";
 
-import React, { use } from "react";
+import React, { use, useState } from "react";
 import RepoLayout from "@/component/repo/RepoLayout";
 import AsyncMarkdown from "@/component/chat/AsyncMarkdown";
 import { getMarkdownComponents } from '@/component/chat/MarkdownComponents';
-import { Github, GitBranch } from "lucide-react";
+import { Github, GitBranch, RefreshCw } from "lucide-react";
+import { repoApi } from "@/lib/api";
 
 const unwrapFencedContent = (text?: string) => {
   if (!text) return '';
@@ -17,6 +18,27 @@ const unwrapFencedContent = (text?: string) => {
 export default function IntroPage({ params }: { params: { repoId: string } | Promise<{ repoId: string }> }) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const { repoId } = resolvedParams;
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'updating' | 'updated'>('idle');
+
+  const handleUpdate = async (githubUrl: string) => {
+    if (updateStatus === 'updating') return;
+    
+    setUpdateStatus('updating');
+    
+    try {
+      const data = await repoApi.updateRepo({ github_url: githubUrl });
+      
+      if (data.up_to_date) {
+        setUpdateStatus('updated');
+      } else {
+        // Keep showing updating state
+        setUpdateStatus('updating');
+      }
+    } catch (error) {
+      console.error('Error updating repository:', error);
+      setUpdateStatus('idle');
+    }
+  };
 
   return (
     <div className="max-w-none">
@@ -38,15 +60,36 @@ export default function IntroPage({ params }: { params: { repoId: string } | Pro
 
             {/* GitHub URL */}
             <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-5 hover:bg-white/[0.03] transition-colors">
-              <div className="flex items-center gap-2 mb-3">
-                <Github className="w-4 h-4 text-gray-400" />
-                <span className="text-[14px] text-gray-400 font-mono">Source</span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Github className="w-4 h-4 text-gray-400" />
+                  <span className="text-[14px] text-gray-400 font-mono">Source</span>
+                </div>
+                {(data as any)?.github_url && (
+                  <button
+                    onClick={() => handleUpdate((data as any).github_url)}
+                    disabled={updateStatus === 'updating' || updateStatus === 'updated'}
+                    className={`
+                      flex items-center gap-1.5 text-[12px] font-mono transition-colors
+                      ${updateStatus === 'updating'
+                        ? 'text-gray-500 cursor-not-allowed'
+                        : updateStatus === 'updated'
+                        ? 'text-green-400 cursor-not-allowed'
+                        : 'text-gray-400 hover:text-gray-300 cursor-pointer'
+                      }
+                    `}
+                    title={updateStatus === 'updated' ? 'Already Updated' : 'Update Repository'}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${updateStatus === 'updating' ? 'animate-spin' : ''}`} />
+                    <span>Update repository</span>
+                  </button>
+                )}
               </div>
               {(data as any)?.github_url ? (
-                <a 
-                  href={(data as any).github_url} 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href={(data as any).github_url}
+                  target="_blank"
+                  rel="noreferrer"
                   className="text-[14px] font-mono text-blue-400 hover:text-blue-300 transition-colors truncate block"
                 >
                   {(data as any).github_url}
