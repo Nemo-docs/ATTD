@@ -15,6 +15,7 @@ from app.modules.inline_qna.routes import router as inline_qna_router
 from app.modules.chat_qa.routes import router as chat_qa_router
 from app.modules.git_repo_setup import routes as git_repo_routes
 from app.modules.user_module.routes import router as user_router
+from app.modules.snippet_management.routes import router as snippet_router
 
 # Import custom logger
 from utils.log_util import logger_instance 
@@ -87,6 +88,9 @@ app.include_router(auto_generation_router, prefix="/api", tags=["auto-generation
 
 # Include page management routes
 app.include_router(page_management_router, prefix="/api", tags=["page-management"])
+
+# Include snippet management routes
+app.include_router(snippet_router, prefix="/api", tags=["snippet-management"])
 
 # Include inline Q&A routes
 app.include_router(inline_qna_router, prefix="/api", tags=["inline-qna"])

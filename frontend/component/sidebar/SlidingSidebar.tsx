@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, Settings } from "lucide-react";
+import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText } from "lucide-react";
 import { KeysModal } from "@/component/keys/KeysModal";
 import { pageApi, chatQaApi } from "@/lib/api";
 import { resolveUserId } from "@/lib/user";
@@ -113,17 +113,17 @@ export function SlidingSidebar() {
   const renderPersonalPages = () => {
     if (pagesLoading) {
       return (
-        <div className="flex items-center gap-2 rounded-xl border border-[#343434] bg-[#1f1f1f] px-4 py-3 font-mono text-[12px] text-gray-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading your pages...
+        <div className="flex items-center gap-2 px-3 py-2 font-mono text-[12px] text-gray-500">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading...
         </div>
       );
     }
 
     if (pagesError) {
       return (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 font-mono text-[12px] text-red-300">
-          <AlertCircle className="h-4 w-4" />
+        <div className="flex items-center gap-2 px-3 py-2 font-mono text-[12px] text-red-400">
+          <AlertCircle className="h-3 w-3" />
           {pagesError}
         </div>
       );
@@ -131,16 +131,15 @@ export function SlidingSidebar() {
 
     if (personalPages.length === 0) {
       return (
-        <div className="rounded-xl border border-dashed border-[#343434] bg-[#1f1f1f] px-4 py-3 font-mono text-[12px] text-gray-400">
-          No personal pages yet.
+        <div className="px-3 py-2 font-mono text-[12px] text-gray-600">
+          No pages yet
         </div>
       );
     }
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-1">
         {personalPages.map((page) => {
-          const updated = page.updated_at ? new Date(page.updated_at).toLocaleDateString() : "Recently";
           const pagePath = isRepoRoute && repoId ? `/repo/${repoId}/page/${page.id}` : `/${page.id}`;
           const isActive = pathname === pagePath;
 
@@ -148,17 +147,14 @@ export function SlidingSidebar() {
             <button
               key={page.id}
               onClick={() => handleNavigateToPage(page.id)}
-              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+              className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
                 isActive
-                  ? "border-[#5b5bff] bg-[#2d2d4f] text-white"
-                  : "border-[#343434] bg-[#262626] text-gray-200 hover:border-[#5b5bff]/60 hover:bg-[#2d2d4f]/60"
+                  ? "bg-[#2a2a2a] text-white"
+                  : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
               }`}
             >
-              <Notebook className="h-4 w-4 text-[#8b8bff]" />
-              <div className="flex flex-col">
-                <span className="font-mono text-[14px]">{page.title || "Untitled page"}</span>
-                <span className="font-mono text-[12px] text-gray-400">Updated {updated}</span>
-              </div>
+              <FileText className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-gray-300" : "text-gray-600"}`} />
+              <span className="font-mono text-[14px] truncate">{page.title || "Untitled"}</span>
             </button>
           );
         })}
@@ -170,146 +166,105 @@ export function SlidingSidebar() {
     <>
       {/* Slide-out panel */}
       <div
-        className={`fixed inset-y-0 left-0 z-60 w-[410px] max-w-[100vw] transform overflow-hidden rounded-r-xl border border-[#343434] bg-[#1f1f1f] shadow-[0px_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-[380px]"
+        className={`fixed inset-y-0 left-0 z-60 w-[280px] transform overflow-hidden border-r border-[#2a2a2a] bg-[#191919] shadow-2xl transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
       >
-        <Card className="h-full rounded-none rounded-r-xl border-none bg-transparent p-0 text-white shadow-none">
-          <CardHeader className="rounded-none rounded-tr-xl border-b border-[#343434] bg-[#262626] px-6 py-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="font-mono text-[24px]">Book</CardTitle>
-                <CardDescription className="font-mono text-[14px] text-gray-400">
-                  Quick access to your docs.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsKeysModalOpen(true)}
-                className="flex items-center gap-2 h-8 px-3 py-1 text-[12px] font-mono border-[#343434] bg-[#1f1f1f] text-gray-300 hover:bg-[#2d2d4f] hover:text-white hover:border-[#5b5bff]/60"
-              >
-                <Settings className="h-3 w-3" />
-                API_Key
-              </Button>
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-[#2a2a2a] px-4 py-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-gray-600"></div>
+              <h2 className="font-mono text-[14px] font-medium text-gray-300">Book</h2>
             </div>
-          </CardHeader>
+            <button
+              onClick={() => setIsKeysModalOpen(true)}
+              className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-[#2a2a2a] hover:text-gray-300"
+              title="API Settings"
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
-          <CardContent className="flex-1 p-0">
-            <ScrollArea className="max-h-[calc(100vh-120px)] px-6 py-6 overflow-auto">
-              <div className="mb-4 flex">
-                <Button
-                  className="h-8 px-3 py-1 text-[12px] font-mono bg-[#c58122] text-white hover:bg-[#7d5a28]"
-                  onClick={handleCreateDocumentation}
-                >
-                  <Plus className="mr-2 h-3 w-3" />
-                  Start
-                </Button>
+          {/* Content */}
+          <ScrollArea className="flex-1 px-3 py-4">
+            <div className="space-y-6">
+              {/* New Doc Button */}
+              <button
+                onClick={handleCreateDocumentation}
+                className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] px-3 py-2 font-mono text-[14px] text-gray-300 transition-colors hover:bg-[#333333] hover:text-white"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Doc
+              </button>
+
+              {/* Organisation Section */}
+              <div>
+                <div className="mb-2 px-2 font-mono text-[12px] font-medium uppercase tracking-wider text-gray-600">
+                  Workspace
+                </div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (!isRepoRoute) {
+                        setChatError("Open a repository to view its overview.");
+                        return;
+                      }
+                      router.push(`/repo/${repoId}`);
+                    }}
+                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
+                      pathname === `/repo/${repoId}`
+                        ? "bg-[#2a2a2a] text-white"
+                        : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
+                    }`}
+                  >
+                    <Building2 className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}` ? "text-gray-300" : "text-gray-600"}`} />
+                    <span className="font-mono text-[14px]">Overview</span>
+                  </button>
+                </div>
               </div>
-              <div className="space-y-8">
-                <section>
-                  <div className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.2em] text-gray-400">
-                    <Building2 className="h-3 w-3" />
-                    Organisation
-                  </div>
-                  <div className="mt-3 space-y-4">
-                    <div className="rounded-2xl border border-[#343434] bg-[#262626] p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-mono text-[16px] text-white">Pages</h3>
-                          <p className="font-mono text-[12px] text-gray-400">Shared documentation coming soon.</p>
-                        </div>
-                      </div>
-                      <Separator className="my-4 bg-[#343434]" />
-                      <div className="mt-2">
-                        <button
-                          onClick={() => {
-                            if (!isRepoRoute) {
-                              setChatError("Open a repository to view its overview.");
-                              return;
-                            }
-                            router.push(`/repo/${repoId}`);
-                          }}
-                          className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
-                            pathname === `/repo/${repoId}`
-                              ? "border-[#5b5bff] bg-[#2d2d4f] text-white"
-                              : "border-[#343434] bg-[#262626] text-gray-200 hover:border-[#5b5bff]/60 hover:bg-[#2d2d4f]/60"
-                          }`}
-                        >
-                          <Building2 className="h-4 w-4 text-[#8b8bff]" />
-                          <div className="flex flex-col">
-                            <span className="font-mono text-[14px]">Repo Overview</span>
-                            <span className="font-mono text-[12px] text-gray-400">Open repository summary</span>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </section>
 
-                <section>
-                  <div className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.2em] text-gray-400">
-                    Personal
-                  </div>
-                  <div className="mt-3 space-y-4">
-                    <div className="rounded-2xl border border-[#343434] bg-[#262626] p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-mono text-[16px] text-white">Pages</h3>
-                          <p className="font-mono text-[12px] text-gray-400">All pages you&apos;ve created.</p>
-                        </div>
-                      </div>
-                      <Separator className="my-4 bg-[#343434]" />
-                      {renderPersonalPages()}
-                    </div>
-
-                    {/* <div className="rounded-2xl border border-[#343434] bg-[#262626] p-4"> */}
-                      {/* <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-mono text-[16px] text-white">Chat</h3>
-                          <p className="font-mono text-[12px] text-gray-400">
-                            Start a fresh AI discussion for the current repo.
-                          </p>
-                        </div>
-                      </div> */}
-                      {/* <Separator className="my-4 bg-[#343434]" /> */}
-                      {/* <div className="space-y-3">
-                        {chatError && (
-                          <div className="flex items-center gap-2 rounded-lg border border-[#5b5bff]/40 bg-[#2d2d4f]/40 px-3 py-2 font-mono text-[12px] text-[#bfbfff]">
-                            <AlertCircle className="h-4 w-4" />
-                            {chatError}
-                          </div>
-                        )}
-                        {!isRepoRoute && !chatError && (
-                          <div className="rounded-lg border border-dashed border-[#343434] bg-[#1f1f1f] px-3 py-2 font-mono text-[12px] text-gray-500">
-                            Open a repository to enable chat.
-                          </div>
-                        )}
-                      </div> */}
-                    {/* </div> */}
-                  </div>
-                </section>
+              {/* Personal Pages Section */}
+              <div>
+                <div className="mb-2 px-2 font-mono text-[12px] font-medium uppercase tracking-wider text-gray-600">
+                  Pages
+                </div>
+                {renderPersonalPages()}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </div>
+          </ScrollArea>
 
+          {/* Footer status (optional) */}
+          {chatError && (
+            <div className="border-t border-[#2a2a2a] px-3 py-2">
+              <div className="flex items-start gap-2 rounded-md bg-red-500/10 px-2 py-1.5 text-[11px] text-red-400">
+                <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                <span className="font-mono leading-tight">{chatError}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Slim handle to open the panel */}
-      {/* <div className="fixed left-0 top-1/2 z-60 -translate-y-1/2">
-        <button
-          type="button"
-          onMouseEnter={() => setIsOpen(true)}
-          className="flex h-32 w-6 items-center justify-center rounded-r-lg border border-[#343434] border-l-transparent bg-[#262626] text-gray-300"
-          aria-label="Open panel"
-        >
-
+      {/* Toggle handle - follows sidebar */}
+      <button
+        // onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(!isOpen)}
+        className={`fixed top-1/2 z-[70] flex h-30 w-[30px] -translate-y-1/2 items-center justify-center rounded-r-lg  bg-gray-500 text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-900 ${
+          isOpen ? "left-[280px]" : "left-0"
+        }`}
+        style={{
+          clipPath: "polygon(0 20%, 50px 0, 50px 100%, 0 80%)", transform: "rotate(180deg)"
+        }}
+        aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        {isOpen ? (
           <ChevronRight className="h-4 w-4" />
-        </button>
-      </div> */}
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </button>
 
       {/* KeysModal */}
       <KeysModal

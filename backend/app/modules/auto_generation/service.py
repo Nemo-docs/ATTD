@@ -50,9 +50,9 @@ class AutoGenerationService:
         # Create index on repo_hash for faster lookups
         try:
             self.collection.create_index("repo_hash", unique=True)
-            self.logger.info(
-                f"Created unique index on repo_hash in collection {self.collection_name}"
-            )
+            # self.logger.info(
+            #     f"Created unique index on repo_hash in collection {self.collection_name}"
+            # )
         except PyMongoError as e:
             self.logger.warning(f"Could not create index: {e}")
 
