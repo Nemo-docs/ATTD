@@ -15,12 +15,8 @@ class SnippetModel(BaseModel):
     user_id: str = Field(..., description="Owner user identifier", min_length=1)
     content: str = Field(..., description="Snippet content (text or code)")
     tags: List[str] = Field(default_factory=list, description="Optional tags for the snippet")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
-
-    class Config:
-        json_encoders = {datetime: lambda v: v.isoformat()}
-
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Creation timestamp")
+    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
 
 class SnippetsModel(BaseModel):
     """
@@ -33,8 +29,10 @@ class SnippetsModel(BaseModel):
     )
     user_id: str = Field(..., description="Owner user identifier", min_length=1)
     snippet_ids: List[str] = Field(default_factory=list, description="List of snippet ids")
+    deleted_snippet_ids: Optional[List[str]] = Field(default_factory=list, description="List of deleted snippet ids")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    last_unix_timestamp: int = Field(default=int(datetime.now().timestamp()), description="Last unix timestamp")
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}

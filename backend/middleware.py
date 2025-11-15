@@ -28,6 +28,10 @@ async def auth_middleware(request: Request, call_next):
     )
     
     if not state.is_signed_in:
+        if request.url.path.contains("/snippets"):
+            # Store auth state in request
+            request.state.auth = state
+            return await call_next(request)
         return JSONResponse(
             {"error": state.reason or "Unauthorized"},
             status_code=401

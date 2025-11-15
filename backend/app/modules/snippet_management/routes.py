@@ -6,13 +6,16 @@ from .service import SnippetManagementService
 from .schema import (
     CreateSnippetRequest,
     CreateSnippetResponse,
+    DeleteSnippetResponse,
+    EnsureCollectionResponse,
+    ErrorResponse,
+    GetSnippetResponse,
+    GetSnippetsResponse,
+    SyncSnippetsRequest,
+    SyncSnippetsResponse,
+    SyncStatusResponse,
     UpdateSnippetRequest,
     UpdateSnippetResponse,
-    GetSnippetsResponse,
-    GetSnippetResponse,
-    DeleteSnippetResponse,
-    ErrorResponse,
-    EnsureCollectionResponse,
 )
 
 router = APIRouter(prefix="/snippets", tags=["snippet-management"])
@@ -54,6 +57,49 @@ async def get_all_snippets(user_id: str) -> GetSnippetsResponse:
         raise
     except Exception as e:
         logger.error(f"Unexpected error in get_all_snippets: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/sync/status", response_model=SyncStatusResponse)
+async def get_sync_status(user_id: str) -> SyncStatusResponse:
+    try:
+        logger.info(f"Fetching sync status for user {user_id}")
+        result = snippet_service.get_sync_status(user_id=user_id)
+        if "error" in result:
+            status_code_value = status.HTTP_400_BAD_REQUEST if result["error"] == "user_id is required" else status.HTTP_500_INTERNAL_SERVER_ERROR
+            raise HTTPException(status_code=status_code_value, detail=f"Failed to obtain sync status: {result['error']}")
+        return SyncStatusResponse(last_unix_timestamp=result["last_unix_timestamp"], total_count=result["total_count"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_sync_status: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/sync", response_model=SyncSnippetsResponse)
+async def sync_snippets(request: SyncSnippetsRequest) -> SyncSnippetsResponse:
+    try:
+        logger.info(f"Syncing snippets for user {request.user_id}")
+        local_payloads = [snippet.dict(by_alias=False) for snippet in request.snippets]
+        result = snippet_service.sync_snippets(
+            user_id=request.user_id,
+            local_snippets=local_payloads,
+            client_last_edit_unix=request.last_edit_unix,
+        )
+        if "error" in result:
+            status_code_value = status.HTTP_400_BAD_REQUEST if result["error"] == "user_id is required" else status.HTTP_500_INTERNAL_SERVER_ERROR
+            raise HTTPException(status_code=status_code_value, detail=f"Failed to sync snippets: {result['error']}")
+
+        return SyncSnippetsResponse(
+            message=result["message"],
+            snippets=result["snippets"],
+            last_unix_timestamp=result["last_unix_timestamp"],
+            was_changed=result["was_changed"],
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in sync_snippets: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal server error: {str(e)}")
 
 

@@ -74,6 +74,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:1430",
         os.getenv("FRONTEND_BASE_URL")
     ],  # Frontend origins
     allow_credentials=True,
