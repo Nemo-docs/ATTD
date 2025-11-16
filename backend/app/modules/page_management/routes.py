@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Request
-from typing import Dict, List
-import logging
+
+from core.log_util import logger_instance
 
 from .service import PageManagementService
 from .schema import (
@@ -19,7 +19,6 @@ router = APIRouter(prefix="/pages", tags=["page-management"])
 
 # Initialize service
 page_service = PageManagementService()
-logger = logging.getLogger(__name__)
 
 
 @router.post("/create", response_model=CreatePageResponse)
@@ -42,7 +41,7 @@ async def create_page(
     """
     try:
         user_id = req.state.user_id
-        logger.info(f"Creating new page: {request.title} for user: {user_id}")
+        logger_instance.info(f"Creating new page: {request.title} for user: {user_id}")
 
         # Create the page
         result = page_service.create_page(
@@ -51,19 +50,19 @@ async def create_page(
 
         # Check if there was an error during creation
         if "error" in result:
-            logger.error(f"Page creation failed: {result['error']}")
+            logger_instance.error(f"Page creation failed: {result['error']}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create page: {result['error']}",
             )
 
-        logger.info(f"Successfully created page with ID: {result['page'].id}")
+        logger_instance.info(f"Successfully created page with ID: {result['page'].id}")
         return CreatePageResponse(page=result["page"], message=result["message"])
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in create_page: {str(e)}")
+        logger_instance.error(f"Unexpected error in create_page: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -83,18 +82,18 @@ WWDC
     """
     try:
         user_id = req.state.user_id
-        logger.info(f"Retrieving all pages for user: {user_id}")
+        logger_instance.info(f"Retrieving all pages for user: {user_id}")
 
         result = page_service.get_all_pages(user_id=user_id)
 
         if "error" in result:
-            logger.error(f"Failed to retrieve pages: {result['error']}")
+            logger_instance.error(f"Failed to retrieve pages: {result['error']}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve pages: {result['error']}",
             )
 
-        logger.info(f"Successfully retrieved {result['total_count']} pages")
+        logger_instance.info(f"Successfully retrieved {result['total_count']} pages")
         return GetPagesResponse(
             pages=result["pages"], total_count=result["total_count"]
         )
@@ -102,7 +101,7 @@ WWDC
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in get_all_pages: {str(e)}")
+        logger_instance.error(f"Unexpected error in get_all_pages: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -123,7 +122,7 @@ async def get_page(page_id: str, req: Request) -> GetPageResponse:
     """
     try:
         user_id = req.state.user_id
-        logger.info(f"Retrieving page with ID: {page_id} for user {user_id}")
+        logger_instance.info(f"Retrieving page with ID: {page_id} for user {user_id}")
 
         result = page_service.get_page(page_id, user_id=user_id)
 
@@ -134,7 +133,7 @@ async def get_page(page_id: str, req: Request) -> GetPageResponse:
             )
 
         if "error" in result:
-            logger.error(f"Database error: {result['error']}")
+            logger_instance.error(f"Database error: {result['error']}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {result['error']}",
@@ -145,13 +144,13 @@ async def get_page(page_id: str, req: Request) -> GetPageResponse:
 
         page_model = PageModel(**result)
 
-        logger.info(f"Successfully retrieved page with ID: {page_id}")
+        logger_instance.info(f"Successfully retrieved page with ID: {page_id}")
         return GetPageResponse(page=page_model)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in get_page: {str(e)}")
+        logger_instance.error(f"Unexpected error in get_page: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -177,7 +176,7 @@ async def update_page(
     """
     try:
         user_id = req.state.user_id
-        logger.info(f"Updating page with ID: {page_id} for user {user_id}")
+        logger_instance.info(f"Updating page with ID: {page_id} for user {user_id}")
 
         # Update the page
         result = page_service.update_page(
@@ -195,19 +194,19 @@ async def update_page(
                     detail=result["error"],
                 )
             else:
-                logger.error(f"Page update failed: {result['error']}")
+                logger_instance.error(f"Page update failed: {result['error']}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update page: {result['error']}",
                 )
 
-        logger.info(f"Successfully updated page with ID: {page_id}")
+        logger_instance.info(f"Successfully updated page with ID: {page_id}")
         return UpdatePageResponse(page=result["page"], message=result["message"])
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in update_page: {str(e)}")
+        logger_instance.error(f"Unexpected error in update_page: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -228,7 +227,7 @@ async def delete_page(page_id: str, req: Request) -> DeletePageResponse:
     """
     try:
         user_id = req.state.user_id
-        logger.info(f"Deleting page with ID: {page_id} for user {user_id}")
+        logger_instance.info(f"Deleting page with ID: {page_id} for user {user_id}")
 
         # Delete the page
         result = page_service.delete_page(page_id, user_id=user_id)
@@ -241,13 +240,13 @@ async def delete_page(page_id: str, req: Request) -> DeletePageResponse:
                     detail=result["error"],
                 )
             else:
-                logger.error(f"Page deletion failed: {result['error']}")
+                logger_instance.error(f"Page deletion failed: {result['error']}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to delete page: {result['error']}",
                 )
 
-        logger.info(f"Successfully deleted page with ID: {page_id}")
+        logger_instance.info(f"Successfully deleted page with ID: {page_id}")
         return DeletePageResponse(
             message=result["message"], deleted_page_id=result["deleted_page_id"]
         )
@@ -255,7 +254,7 @@ async def delete_page(page_id: str, req: Request) -> DeletePageResponse:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in delete_page: {str(e)}")
+        logger_instance.error(f"Unexpected error in delete_page: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",

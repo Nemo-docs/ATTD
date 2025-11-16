@@ -1,10 +1,8 @@
 """HTTP routes for the user module."""
 
-import logging
 import re
-
 from fastapi import APIRouter, HTTPException, status
-
+from core.log_util import logger_instance
 from .schemas import (
     RegisterUserRequest,
     RegisterUserResponse,
@@ -15,7 +13,6 @@ from .services import UserService
 
 router = APIRouter(prefix="/user", tags=["user"])
 user_service = UserService()
-logger = logging.getLogger(__name__)
 
 _USER_ID_PATTERN = re.compile(r"^\d{16}$")
 
@@ -37,7 +34,7 @@ async def register_user(request: RegisterUserRequest) -> RegisterUserResponse:
     try:
         user = user_service.ensure_user(request.user_id)
     except Exception as exc:  # noqa: BLE001 - broad to surface backend errors
-        logger.error("Failed to register user %s: %s", request.user_id, exc)
+        logger_instance.error("Failed to register user %s: %s", request.user_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to register user",
@@ -55,7 +52,7 @@ async def get_user(user_id: str) -> UserResponse:
     try:
         user = user_service.get_user(user_id)
     except Exception as exc:  # noqa: BLE001
-        logger.error("Failed to fetch user %s: %s", user_id, exc)
+        logger_instance.error("Failed to fetch user %s: %s", user_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch user",

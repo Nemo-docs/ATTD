@@ -1,28 +1,22 @@
-import logging
 import os
 from typing import List, Dict
 import json
-from clients import open_router_client
+from core.clients import open_router_client
+from core.config import settings
+from core.log_util import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.auto_generation.service_definations import ParseDefinitionsService
-from dotenv import load_dotenv
 
-load_dotenv()
+
 
 
 # Ensure a boolean flag
-IS_PRO_USER = True if "TRUE" in os.getenv("IS_PRO_USER").upper() else False
+IS_PRO_USER = True if "TRUE" in settings.IS_PRO_USER.upper() else False
 
 MAX_ITERATIONS = 1
 if IS_PRO_USER:
     from pro_features.tree_traversal import tree_traversal_tool, get_indexed_repo_symbols
     MAX_ITERATIONS = 10
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 
 auto_gen_service = AutoGenerationService()
@@ -52,7 +46,7 @@ TOOLS = [
 ]
 
 
-# tool definations
+# tool definitions
 def get_repo_cursory_explanation_tool(project_context: Dict[str, str]) -> str:
     return "Project Cursory Explanation:\n" + project_context["cursory_explanation"]
 
@@ -84,7 +78,7 @@ if IS_PRO_USER:
 
 
 def call_llm(msgs: List):
-    logger.info(f"Making LLM call with {len(msgs)} messages")
+    logger_instance.info(f"Making LLM call with {len(msgs)} messages")
     # Retry logic with exponential backoff
     import time
 
@@ -107,26 +101,26 @@ def call_llm(msgs: List):
                 messages=system_prompt + msgs,
             )
             msgs.append(resp.choices[0].message.dict())
-            logger.info("LLM call completed successfully")
+            logger_instance.info("LLM call completed successfully")
             return resp
         except Exception as e:
             last_exception = e
             # Log the attempt and error
-            logger.warning(
+            logger_instance.error(
                 f"LLM call failed on attempt {attempt}/{max_retries}: {str(e)}"
             )
             # For non-retryable errors, re-raise immediately
             # Here we conservatively retry on all exceptions; more fine-grained
             # handling can be added based on exception types or response codes.
             if attempt == max_retries:
-                logger.error("Max retries reached for LLM call, raising exception")
+                logger_instance.error("Max retries reached for LLM call, raising exception")
                 raise
 
             # Exponential backoff with jitter
             delay = base_delay * (2 ** (attempt - 1))
             jitter = delay * 0.1
             sleep_time = delay + (jitter * (0.5 - os.urandom(1)[0] / 255.0))
-            logger.info(f"Retrying in {sleep_time:.2f} seconds")
+            logger_instance.info(f"Retrying in {sleep_time:.2f} seconds")
             time.sleep(max(0.1, sleep_time))
     # If we exit the loop without returning, raise the last exception
     raise last_exception
@@ -145,9 +139,9 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
     tool_name = tool_call.function.name
     tool_args = json.loads(tool_call.function.arguments)
 
-    logger.info(f"Preparing to execute tool: {tool_name} with raw args: {tool_args}")
+    logger_instance.info(f"Preparing to execute tool: {tool_name} with raw args: {tool_args}")
     if repo_hash:
-        logger.info(f"Tool execution will use repo hash : {repo_hash}")
+        logger_instance.info(f"Tool execution will use repo hash : {repo_hash}")
 
     # Resolve relative paths for common arg names
     resolved_args = dict(tool_args)
@@ -159,7 +153,7 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
     try:
         tool_result = TOOL_MAPPING[tool_name](**resolved_args)
 
-        logger.info(f"Tool {tool_name} execution completed")
+        logger_instance.info(f"Tool {tool_name} execution completed")
 
         return {
             "role": "tool",
@@ -167,14 +161,14 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
             "content": tool_result,
         }
     except KeyError:
-        logger.error(f"Requested tool '{tool_name}' is not available in TOOL_MAPPING")
+        logger_instance.error(f"Requested tool '{tool_name}' is not available in TOOL_MAPPING")
         return {
             "role": "tool",
             "tool_call_id": getattr(tool_call, "id", None),
             "content": f"Error: unknown tool '{tool_name}'",
         }
     except Exception as e:
-        logger.exception(f"Error executing tool {tool_name}: {str(e)}")
+        logger_instance.error(f"Error executing tool {tool_name}: {str(e)}")
         return {
             "role": "tool",
             "tool_call_id": getattr(tool_call, "id", None),
@@ -208,12 +202,12 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
         + "\n```"
     )
 
-    logger.info(f"Starting agentic loop with max {max_iterations} iterations")
+    logger_instance.info(f"Starting agentic loop with max {max_iterations} iterations")
     iteration_count = 0
 
     while iteration_count < max_iterations:
         iteration_count += 1
-        logger.info(f"Agentic loop iteration {iteration_count}/{max_iterations}")
+        logger_instance.info(f"Agentic loop iteration {iteration_count}/{max_iterations}")
         messages[-1]["content"] = (
             messages[-1]["content"]
             + f"\n\nIteration {iteration_count}/{max_iterations}"
@@ -221,21 +215,20 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
         resp = call_llm(messages)
 
         if resp.choices[0].message.tool_calls is not None:
-            logger.info("Tool calls detected, executing tools")
+            logger_instance.info("Tool calls detected, executing tools")
             messages.append(
                 get_tool_response(
                     resp, project_context=project_context, repo_hash=repo_hash, repo_symbols=repo_symbols
                 )
             )
         else:
-            logger.info("No tool calls detected, ending loop")
+            logger_instance.info("No tool calls detected, ending loop")
             break
 
     if iteration_count >= max_iterations:
-        logger.warning(f"Maximum iterations ({max_iterations}) reached")
-        print("Warning: Maximum iterations reached")
+        logger_instance.error(f"Maximum iterations ({max_iterations}) reached")
 
-    logger.info(f"Agentic loop completed after {iteration_count} iterations")
+    logger_instance.info(f"Agentic loop completed after {iteration_count} iterations")
     return messages[-1]["content"]
 
 
@@ -243,7 +236,7 @@ def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: s
     definations_full_info = parse_definations.get_all_node_full_info(repo_hash)
     additional_info = ""
     additional_info += f"""
-    The following are the definations of the mentioned code file, classes or functions mentioned in the user message:\n\n
+    The following are the definitions of the mentioned code file, classes or functions mentioned in the user message:\n\n
     """
     for mentioned_defination in mentioned_definations:
         for definations in definations_full_info:
@@ -255,7 +248,7 @@ def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: s
                 ```\n\n
                 """
                 break
-    # message = message.replace(f"@{definations['node_name']}", f"@{definations['node_name']}")
+    # message = message.replace(f"@{definitions['node_name']}", f"@{definitions['node_name']}")
     return message + additional_info
 
 # if __name__ == "__main__":
@@ -269,5 +262,5 @@ def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: s
 #         _messages,
 #         repo_hash="841a2e8c754b3a577e09ddd7ffba4642275442d2578096b4fcb24f64662c105a",
 #     )
-#     logger.info("Example usage completed")
+#     logger_instance.info("Example usage completed")
 #     print("Final result:", result)

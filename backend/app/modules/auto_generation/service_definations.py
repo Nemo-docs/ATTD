@@ -1,33 +1,28 @@
-from dotenv import load_dotenv
-import os
-from tree_sitter import Language, Parser
+from tree_sitter import Query, Language, Parser
 import tree_sitter_python as tspython
 import json
 from typing import Dict, List, Literal
 import os
-from tree_sitter import Query
 from hashlib import sha256
-import logging
-from app.modules.auto_generation.service import AutoGenerationService
-from utils.git_repo_setup_utils import git_clone_files, remove_cloned_files
 import uuid
 from pydantic import BaseModel, Field
-from typing import List, Literal
-from clients import mongodb_client
 from pymongo.collection import Collection
 from app.modules.auto_generation.models import  Definition
 from datetime import datetime, timezone
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from core.config import settings
+from core.clients import mongodb_client
+from core.log_util import logger_instance
+from app.modules.auto_generation.service import AutoGenerationService
+from utils.git_repo_setup_utils import git_clone_files, remove_cloned_files
 
-load_dotenv()
+
 
 
 class ParseDefinitionsService:
     def __init__(self):
         self.auto_generation = AutoGenerationService()
         # Database setup
-        self.db_name = os.getenv("DB_NAME", "attd_db")
+        self.db_name = settings.DB_NAME
         self.db = mongodb_client[self.db_name]
         self.collection: Collection = self.db["definitions"]
 
@@ -62,7 +57,7 @@ class ParseDefinitionsService:
                 raise Exception("Failed to save definitions to database")
             return save_success
         except Exception as e:
-            logger.error(f"Error getting definitions: {e}")
+            logger_instance.error(f"Error getting definitions: {e}")
             raise e from e
         finally:
             remove_cloned_files(repo_hash=repo_hash, random_id=random_id)

@@ -1,19 +1,18 @@
-import os
 import concurrent.futures
 import tiktoken
-import logging
+import os
 import hashlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
-from dotenv import load_dotenv
-from clients import open_router_client, mongodb_client
+from core.clients import open_router_client, mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
 from app.modules.auto_generation.models import ProjectIntroModel
 from utils.mermaid_generation_validation import MermaidGenerationValidator
 from app.modules.git_repo_setup.management_services import GitRepoManagementService
 
-load_dotenv()
 
 
 class AutoGenerationService:
@@ -27,22 +26,12 @@ class AutoGenerationService:
     def __init__(self):
         self.tokenizer = tiktoken.get_encoding("cl100k_base")  # GPT-4 tokenizer
         self.max_tokens = 50_000_000  # 50M tokens limit
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        # show line numbers in logs
-        self.logger.addHandler(logging.StreamHandler())
-        self.logger.propagate = False
-        self.logger.handlers[0].setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d"
-            )
-        )
-
-        self.mermaid_validator = MermaidGenerationValidator(logger=self.logger)
+        self.logger = logger_instance
+        self.mermaid_validator = MermaidGenerationValidator()
         self.git_repo_management_service = GitRepoManagementService()
 
         # Database setup
-        self.db_name = os.getenv("DB_NAME", "attd_db")
+        self.db_name = settings.DB_NAME
         self.collection_name = "project_intros"
         self.db = mongodb_client[self.db_name]
         self.collection: Collection = self.db[self.collection_name]
@@ -54,7 +43,7 @@ class AutoGenerationService:
             #     f"Created unique index on repo_hash in collection {self.collection_name}"
             # )
         except PyMongoError as e:
-            self.logger.warning(f"Could not create index: {e}")
+            self.logger.error(f"Could not create index: {e}")
 
     def generate_intro(self, github_url: str, repo_hash: str, name: str) -> Dict:
         """
@@ -151,7 +140,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
             )
 
             if not validation_success:
-                self.logger.warning(
+                self.logger.error(
                     "Mermaid diagram validation failed after max iterations. "
                     "Using generated diagram anyway."
                 )
@@ -170,7 +159,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
 
             else:
                 project_intro_model = ProjectIntroModel(
-                    repo_path=os.getenv("PARENT_DIR") + "/" + repo_hash,
+                    repo_path=settings.PARENT_DIR + "/" + repo_hash,
                     repo_hash=repo_hash,
                     project_intro=project_intro,
                     project_data_flow_diagram=project_diagram,
@@ -187,7 +176,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
             save_success = self._save_project_intro(project_data)
 
             if not save_success:
-                self.logger.warning(
+                self.logger.error(
                     f"Failed to save project intro to database for repo: {repo_hash}"
                 )
 
@@ -213,7 +202,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
         Output: Tree hierarchy string of file names with their roles (cursory explanation)
         """
         try:
-            repo_path = os.getenv("PARENT_DIR") + "/" + repo_hash
+            repo_path = settings.PARENT_DIR + "/" + repo_hash
 
             repo_data = self.git_repo_management_service.get_updated_repo_by_hash(repo_hash)
 
@@ -846,7 +835,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
                 )
                 return True
             else:
-                self.logger.warning(
+                self.logger.error(
                     f"No changes made for project hash: {project_data['repo_hash']}"
                 )
                 return False
@@ -918,7 +907,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
                 )
                 return True
             else:
-                self.logger.warning(
+                self.logger.error(
                     f"No project intro found to delete for hash: {repo_hash}"
                 )
                 return False

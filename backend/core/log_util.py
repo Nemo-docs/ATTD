@@ -1,5 +1,6 @@
 import logging
 import sys
+from core.config import settings
 
 # Define log levels
 DEBUG = logging.DEBUG
@@ -10,7 +11,7 @@ ERROR = logging.ERROR
 class Logger:
     """Simplified central logging utility with DEBUG, INFO, and ERROR levels."""
     
-    def __init__(self, level: int = INFO):
+    def __init__(self, level: int = settings.LOG_LEVEL):
             self._logger = logging.getLogger("attd-backend")
             
             # Create console handler

@@ -1,50 +1,45 @@
 import json
-import logging
 import os
 import sys
-
+from core.log_util import logger_instance
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from clients import open_router_client
+from core.clients import open_router_client
 from app.modules.auto_generation.service import AutoGenerationService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+
 
 # Initialize the auto generation service
-logger.info("Initializing auto generation service")
+logger_instance.info("Initializing auto generation service")
 auto_gen_service = AutoGenerationService()
 
 
 def read_file_tool(file_path: str) -> str:
     """Read the contents of a file."""
-    logger.info(f"Reading file: {file_path}")
+    logger_instance.info(f"Reading file: {file_path}")
     try:
         # Guard: ensure path exists before attempting to open
         if not os.path.exists(file_path):
-            logger.warning(f"read_file_tool: path does not exist: {file_path}")
+            logger_instance.error(f"read_file_tool: path does not exist: {file_path}")
             return f"Error reading file: path does not exist: {file_path}"
 
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-        logger.info(f"Successfully read file: {file_path} ({len(content)} characters)")
+        logger_instance.info(f"Successfully read file: {file_path} ({len(content)} characters)")
         return content
     except Exception as e:
-        logger.error(f"Error reading file {file_path}: {str(e)}")
+        logger_instance.error(f"Error reading file {file_path}: {str(e)}")
         return f"Error reading file: {str(e)}"
 
 
 def search_files_tool(directory: str, pattern: str) -> str:
     """Search for files containing a pattern in a directory."""
-    logger.info(f"Searching for pattern '{pattern}' in directory: {directory}")
+    logger_instance.info(f"Searching for pattern '{pattern}' in directory: {directory}")
     try:
         # Guard: ensure directory exists
         if not os.path.exists(directory) or not os.path.isdir(directory):
-            logger.warning(f"search_files_tool: directory does not exist: {directory}")
+            logger_instance.error(f"search_files_tool: directory does not exist: {directory}")
             return f"No files found: directory does not exist: {directory}"
 
         results = []
@@ -61,22 +56,22 @@ def search_files_tool(directory: str, pattern: str) -> str:
         result_message = (
             "\n".join(results) if results else "No files found containing the pattern."
         )
-        logger.info(
+        logger_instance.info(
             f"Search completed. Found {len(results)} files matching pattern '{pattern}'"
         )
         return result_message
     except Exception as e:
-        logger.error(f"Error searching files in {directory}: {str(e)}")
+        logger_instance.error(f"Error searching files in {directory}: {str(e)}")
         return f"Error searching files: {str(e)}"
 
 
 def list_directory_tool(directory: str) -> str:
     """List files and directories in a given directory."""
-    logger.info(f"Listing directory: {directory}")
+    logger_instance.info(f"Listing directory: {directory}")
     try:
         # Guard: ensure directory exists
         if not os.path.exists(directory) or not os.path.isdir(directory):
-            logger.warning(
+            logger_instance.error(
                 f"list_directory_tool: directory does not exist: {directory}"
             )
             return f"Error listing directory: path does not exist: {directory}"
@@ -88,22 +83,22 @@ def list_directory_tool(directory: str) -> str:
         dirs = [item for item in items if os.path.isdir(os.path.join(directory, item))]
 
         result = "Files:\n" + "\n".join(files) + "\n\nDirectories:\n" + "\n".join(dirs)
-        logger.info(
+        logger_instance.info(
             f"Directory listing completed. Found {len(files)} files and {len(dirs)} directories"
         )
         return result
     except Exception as e:
-        logger.error(f"Error listing directory {directory}: {str(e)}")
+        logger_instance.error(f"Error listing directory {directory}: {str(e)}")
         return f"Error listing directory: {str(e)}"
 
 
 def get_project_intro_by_hash_tool(repo_hash: str) -> str:
     """Get project introduction for a repository by its hash."""
-    logger.info(f"Getting project introduction by hash: {repo_hash}")
+    logger_instance.info(f"Getting project introduction by hash: {repo_hash}")
     try:
         result = auto_gen_service.get_project_intro_by_hash(repo_hash)
         if result:
-            logger.info(
+            logger_instance.info(
                 f"Successfully retrieved project introduction for hash {repo_hash}"
             )
             return f"""Project Introduction for hash {repo_hash}:
@@ -123,10 +118,10 @@ def get_project_intro_by_hash_tool(repo_hash: str) -> str:
 **Updated:** {result.get("updated_at", "Unknown")}
 """
         else:
-            logger.warning(f"No project introduction found for hash: {repo_hash}")
+            logger_instance.error(f"No project introduction found for hash: {repo_hash}")
             return f"No project introduction found for hash: {repo_hash}"
     except Exception as e:
-        logger.error(f"Error getting project intro by hash {repo_hash}: {str(e)}")
+        logger_instance.error(f"Error getting project intro by hash {repo_hash}: {str(e)}")
         return f"Error getting project intro by hash: {str(e)}"
 
 
@@ -196,7 +191,7 @@ TOOLS = [
 
 
 def call_llm(msgs):
-    logger.info(f"Making LLM call with {len(msgs)} messages")
+    logger_instance.info(f"Making LLM call with {len(msgs)} messages")
     # Retry logic with exponential backoff
     import time
 
@@ -219,26 +214,26 @@ def call_llm(msgs):
                 messages=system_prompt + msgs,
             )
             msgs.append(resp.choices[0].message.dict())
-            logger.info("LLM call completed successfully")
+            logger_instance.info("LLM call completed successfully")
             return resp
         except Exception as e:
             last_exception = e
             # Log the attempt and error
-            logger.warning(
+            logger_instance.error(
                 f"LLM call failed on attempt {attempt}/{max_retries}: {str(e)}"
             )
             # For non-retryable errors, re-raise immediately
             # Here we conservatively retry on all exceptions; more fine-grained
             # handling can be added based on exception types or response codes.
             if attempt == max_retries:
-                logger.error("Max retries reached for LLM call, raising exception")
+                logger_instance.error("Max retries reached for LLM call, raising exception")
                 raise
 
             # Exponential backoff with jitter
             delay = base_delay * (2 ** (attempt - 1))
             jitter = delay * 0.1
             sleep_time = delay + (jitter * (0.5 - os.urandom(1)[0] / 255.0))
-            logger.info(f"Retrying in {sleep_time:.2f} seconds")
+            logger_instance.info(f"Retrying in {sleep_time:.2f} seconds")
             time.sleep(max(0.1, sleep_time))
     # If we exit the loop without returning, raise the last exception
     raise last_exception
@@ -255,9 +250,9 @@ def get_tool_response(response, dir_path: str = None):
     tool_name = tool_call.function.name
     tool_args = json.loads(tool_call.function.arguments)
 
-    logger.info(f"Preparing to execute tool: {tool_name} with raw args: {tool_args}")
+    logger_instance.info(f"Preparing to execute tool: {tool_name} with raw args: {tool_args}")
     if dir_path:
-        logger.info(f"Tool execution will resolve paths relative to: {dir_path}")
+        logger_instance.info(f"Tool execution will resolve paths relative to: {dir_path}")
 
     # Resolve relative paths for common arg names
     resolved_args = dict(tool_args)
@@ -274,12 +269,12 @@ def get_tool_response(response, dir_path: str = None):
             if d and not os.path.isabs(d):
                 resolved_args["directory"] = os.path.normpath(os.path.join(dir_path, d))
 
-        logger.info(f"Resolved tool args for {tool_name}: {resolved_args}")
+        logger_instance.info(f"Resolved tool args for {tool_name}: {resolved_args}")
 
         # Look up the correct tool locally, and call it with the resolved arguments
         tool_result = TOOL_MAPPING[tool_name](**resolved_args)
 
-        logger.info(f"Tool {tool_name} execution completed")
+        logger_instance.info(f"Tool {tool_name} execution completed")
 
         return {
             "role": "tool",
@@ -287,14 +282,14 @@ def get_tool_response(response, dir_path: str = None):
             "content": tool_result,
         }
     except KeyError:
-        logger.error(f"Requested tool '{tool_name}' is not available in TOOL_MAPPING")
+        logger_instance.error(f"Requested tool '{tool_name}' is not available in TOOL_MAPPING")
         return {
             "role": "tool",
             "tool_call_id": getattr(tool_call, "id", None),
             "content": f"Error: unknown tool '{tool_name}'",
         }
     except Exception as e:
-        logger.exception(f"Error executing tool {tool_name}: {str(e)}")
+        logger_instance.error(f"Error executing tool {tool_name}: {str(e)}")
         return {
             "role": "tool",
             "tool_call_id": getattr(tool_call, "id", None),
@@ -323,12 +318,12 @@ def run_agentic_loop(messages, max_iterations=10, repo_hash=None, dir_path=None)
         + "\n```"
     )
 
-    logger.info(f"Starting agentic loop with max {max_iterations} iterations")
+    logger_instance.info(f"Starting agentic loop with max {max_iterations} iterations")
     iteration_count = 0
 
     while iteration_count < max_iterations:
         iteration_count += 1
-        logger.info(f"Agentic loop iteration {iteration_count}/{max_iterations}")
+        logger_instance.info(f"Agentic loop iteration {iteration_count}/{max_iterations}")
         messages[-1]["content"] = (
             messages[-1]["content"]
             + f"\n\nIteration {iteration_count}/{max_iterations}"
@@ -336,20 +331,19 @@ def run_agentic_loop(messages, max_iterations=10, repo_hash=None, dir_path=None)
         resp = call_llm(messages)
 
         if resp.choices[0].message.tool_calls is not None:
-            logger.info("Tool calls detected, executing tools")
+            logger_instance.info("Tool calls detected, executing tools")
             messages.append(get_tool_response(resp, dir_path=dir_path))
         else:
-            logger.info("No tool calls detected, ending loop")
+            logger_instance.info("No tool calls detected, ending loop")
             break
 
     if iteration_count >= max_iterations:
-        logger.warning(f"Maximum iterations ({max_iterations}) reached")
-        print("Warning: Maximum iterations reached")
+        logger_instance.error(f"Maximum iterations ({max_iterations}) reached")
 
     # put messages in a json file
     with open("messages.json", "w") as f:
         json.dump(messages, f)
-    logger.info(f"Agentic loop completed after {iteration_count} iterations")
+    logger_instance.info(f"Agentic loop completed after {iteration_count} iterations")
     return messages[-1]["content"]
 
 

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Request
-import logging
-
+from core.log_util import logger_instance
 from app.modules.chat_qa.service import ChatQaService
 from app.modules.chat_qa.schema import (
     ChatQaRequest,
@@ -14,8 +13,6 @@ router = APIRouter(prefix="/chat-qa", tags=["chat-qa"])
 
 # Initialize service
 chat_qa_service = ChatQaService()
-logger = logging.getLogger(__name__)
-
 
 @router.post("/message", response_model=ChatQaResponse)
 async def send_chat_message(
@@ -38,19 +35,19 @@ async def send_chat_message(
         # Get user_id from request state (set by middleware)
         user_id = req.state.user_id
 
-        logger.info(f"Received chat message: {request.message[:50]}...")
-        logger.info(f"Conversation ID: {request.conversation_id}")
-        logger.info(f"Page ID: {request.page_id}")
-        logger.info(f"Repo Hash: {request.repo_hash}")
-        logger.info(f"Think level: {getattr(request, 'think_level', None)}")
-        logger.info(f"User ID: {user_id}")
+        logger_instance.info(f"Received chat message: {request.message[:50]}...")
+        logger_instance.info(f"Conversation ID: {request.conversation_id}")
+        logger_instance.info(f"Page ID: {request.page_id}")
+        logger_instance.info(f"Repo Hash: {request.repo_hash}")
+        logger_instance.info(f"Think level: {getattr(request, 'think_level', None)}")
+        logger_instance.info(f"User ID: {user_id}")
 
         # Route the request to the appropriate handler in the service
         result = chat_qa_service.route_request(request, user_id)
 
         # Check if there was an error during generation
         if "error" in result:
-            logger.error(f"Chat generation failed: {result['error']}")
+            logger_instance.error(f"Chat generation failed: {result['error']}")
             status_code_value = (
                 status.HTTP_400_BAD_REQUEST
                 if result["error"] == "user_id is required"
@@ -75,13 +72,13 @@ async def send_chat_message(
             user_id=user_id,
         )
 
-        logger.info(f"Successfully generated chat response: {response.id}")
+        logger_instance.info(f"Successfully generated chat response: {response.id}")
         return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in send_chat_message: {str(e)}")
+        logger_instance.error(f"Unexpected error in send_chat_message: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -108,9 +105,9 @@ async def create_conversation(
         # Get user_id from request state (set by middleware)
         user_id = req.state.user_id
 
-        logger.info(f"Creating new conversation with title: {request.title}")
-        logger.info(f"Associated page ID: {request.page_id}")
-        logger.info(f"User ID: {user_id}")
+        logger_instance.info(f"Creating new conversation with title: {request.title}")
+        logger_instance.info(f"Associated page ID: {request.page_id}")
+        logger_instance.info(f"User ID: {user_id}")
 
         # Create conversation using the service
         result = chat_qa_service.create_conversation(
@@ -121,7 +118,7 @@ async def create_conversation(
 
         # Check if there was an error during creation
         if "error" in result:
-            logger.error(f"Conversation creation failed: {result['error']}")
+            logger_instance.error(f"Conversation creation failed: {result['error']}")
             status_code_value = (
                 status.HTTP_400_BAD_REQUEST
                 if result["error"].startswith("user_id")
@@ -143,13 +140,13 @@ async def create_conversation(
             user_id=result["user_id"],
         )
 
-        logger.info(f"Successfully created conversation: {response.id}")
+        logger_instance.info(f"Successfully created conversation: {response.id}")
         return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in create_conversation: {str(e)}")
+        logger_instance.error(f"Unexpected error in create_conversation: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
@@ -164,10 +161,10 @@ async def list_conversations(req: Request):
         results = chat_qa_service.get_conversations(user_id=user_id)
         return results
     except ValueError as e:
-        logger.error(f"Failed to list conversations: {e}")
+        logger_instance.error(f"Failed to list conversations: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to list conversations: {e}")
+        logger_instance.error(f"Failed to list conversations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
@@ -183,10 +180,10 @@ async def get_conversation_messages(conversation_id: str, req: Request):
         )
         return {"messages": messages}
     except ValueError as e:
-        logger.error(f"Failed to get conversation messages: {e}")
+        logger_instance.error(f"Failed to get conversation messages: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to get conversation messages: {e}")
+        logger_instance.error(f"Failed to get conversation messages: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )

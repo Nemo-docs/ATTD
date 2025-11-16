@@ -1,8 +1,9 @@
-import logging
+
 from typing import Dict, Any
 from datetime import datetime
 
-from clients import open_router_client
+from core.log_util import logger_instance
+from core.clients import open_router_client
 
 
 class InlineQnaService:
@@ -12,7 +13,7 @@ class InlineQnaService:
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger_instance
         self.max_tokens = 4000  # Reasonable limit for Q&A responses
 
     def answer_query(

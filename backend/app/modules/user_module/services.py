@@ -1,14 +1,13 @@
 """Service layer for managing anonymous user records."""
 
-import logging
-import os
-from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
-from clients import mongodb_client
+from core.clients import mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
 from .models import UserModel
 
 
@@ -18,16 +17,16 @@ class UserService:
     def __init__(self) -> None:
         """Initialise database handles and indexes."""
 
-        self.logger = logging.getLogger(__name__)
-        database_name = os.getenv("MONGODB_DATABASE", "attd_db")
-        collection_name = os.getenv("MONGODB_COLLECTION_USERS", "users")
+        self.logger = logger_instance
+        database_name = settings.DB_NAME
+        collection_name = "users"
         database = mongodb_client[database_name]
         self.collection: Collection = database[collection_name]
 
         try:
             self.collection.create_index("user_id", unique=True)
         except PyMongoError as exc:
-            self.logger.warning("Could not ensure unique index on user_id: %s", exc)
+            self.logger.error("Could not ensure unique index on user_id: %s", exc)
 
     def ensure_user(self, user_id: str) -> UserModel:
         """Return the user if it exists or create a new record."""
