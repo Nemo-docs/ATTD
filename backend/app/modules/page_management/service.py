@@ -133,6 +133,32 @@ class PageManagementService:
             self.logger.error(f"Error retrieving all pages: {str(e)}")
             return {"error": str(e)}
 
+    def get_all_page_titles(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Retrieve all page titles for the authenticated user.
+
+        Args:
+            user_id: The user identifier
+
+        Returns:
+            Dict containing list of page titles and total count
+        """
+        try:
+            if not user_id:
+                return {"error": "user_id is required"}
+
+            self.logger.info("Retrieving all page titles")
+
+            # Get all page titles from database
+            page_titles = self._get_all_page_titles(user_id=user_id)
+
+            return {"page_titles": page_titles, "total_count": len(page_titles)}
+
+        except Exception as e:
+            self.logger.error(f"Error retrieving all page titles: {str(e)}")
+            return {"error": str(e)}
+
+
     def update_page(
         self,
         page_id: str,
@@ -395,4 +421,23 @@ class PageManagementService:
 
         except PyMongoError as e:
             self.logger.error(f"Error deleting page from database: {e}")
+            raise e
+
+    def _get_all_page_titles(self, user_id: str) -> List[str]:
+        """
+        Retrieve all page titles for the authenticated user.
+
+        Args:
+            user_id: The user identifier
+
+        Returns:
+            List of page titles
+        """
+        try:
+            query = {"user_id": user_id}
+            cursor = self.collection.find(query)
+            page_titles = [page["title"] for page in cursor]
+            return page_titles
+        except PyMongoError as e:
+            self.logger.error(f"Error retrieving page titles from database: {e}")
             raise e

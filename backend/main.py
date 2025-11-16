@@ -12,6 +12,8 @@ from app.modules.chat_qa.routes import router as chat_qa_router
 from app.modules.git_repo_setup import routes as git_repo_routes
 from app.modules.user_module.routes import router as user_router
 from app.modules.snippet_management.routes import router as snippet_router
+from app.modules.mcp_controller.routes import router as mcp_controller_router
+
 # no direct datetime usage in this module
 from contextlib import asynccontextmanager
 
@@ -90,6 +92,8 @@ app.include_router(git_repo_routes.router, prefix="/api", tags=["git-repo-setup"
 # Include user routes
 app.include_router(user_router, prefix="/api")
 
+# Include MCP controller routes
+app.include_router(mcp_controller_router, prefix="/api", tags=["mcp-controller"])
 
 
 # Define basic routes

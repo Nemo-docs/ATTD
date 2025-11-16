@@ -1,6 +1,7 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import ValidationError
-import os
+
 from dotenv import load_dotenv
 
 # Load .env into process environment so non-Settings code can access env vars for LANGFUSE_PUBLIC_KEY
@@ -14,23 +15,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    OPENROUTER_API_KEY: str
-    MONGODB_URI: str
-    DB_NAME: str
-    POSTGRES_CONNECTION: str
-    PARENT_DIR: str
-    AWS_ACCESS_KEY_ID: str
-    AWS_SECRET_ACCESS_KEY: str
-    AWS_REGION: str
-    S3_BUCKET_NAME: str
+    BACKEND_BASE_URL: str
     FRONTEND_BASE_URL: str
-    LANGFUSE_SECRET_KEY: str
-    LANGFUSE_BASE_URL: str
-    LANGFUSE_PUBLIC_KEY: str
     CLERK_SECRET_KEY: str
-    IS_PRO_USER: str
+    PORT: int
     LOG_LEVEL: str
-
+    
 
 try:
     settings = Settings()

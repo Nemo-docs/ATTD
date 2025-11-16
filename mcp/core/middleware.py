@@ -3,10 +3,11 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_http_headers
 # from starlette.responses import JSONResponse
 from clerk_backend_api.security.types import AuthenticateRequestOptions
-from utils.logging import logger
-from utils.config import ENV
+from core.logger import logger
+from core.config import settings
 
-
+# Define public paths that bypass authentication
+PUBLIC_PREFIXES = ("/health",)
 
 class AuthMiddleware(Middleware):
     def __init__(self, clerk_client):
@@ -42,12 +43,12 @@ class AuthMiddleware(Middleware):
         token = auth_header.split(" ", 1)[1].strip()
         hx_req = httpx.Request(
             method="GET",
-            url=ENV.BACKEND_BASE_URL,
+            url=settings.BACKEND_BASE_URL,
             headers={"Authorization": "Bearer " + token},
         )
 
         state = self.clerk.authenticate_request(hx_req, AuthenticateRequestOptions(
-            authorized_parties=[ENV.FRONTEND_BASE_URL]
+            authorized_parties=[settings.FRONTEND_BASE_URL]
         ))
 
         if not state.is_signed_in:
