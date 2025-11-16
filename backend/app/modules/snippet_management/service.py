@@ -1,11 +1,11 @@
-import os
-import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
-from clients import mongodb_client
+from core.clients import mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
 from .models import SnippetModel
 
 
@@ -15,12 +15,12 @@ class SnippetManagementService:
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger_instance
 
         # Database setup
-        self.db_name = os.getenv("MONGODB_DATABASE", "attd_db")
-        self.snippets_collection_name = os.getenv("MONGODB_COLLECTION_SNIPPETS", "snippets")
-        self.collections_collection_name = os.getenv("MONGODB_COLLECTION_SNIPPETS_COLLECTIONS", "snippets_collections")
+        self.db_name = settings.DB_NAME
+        self.snippets_collection_name = "snippets"
+        self.collections_collection_name = "snippets_collections"
         self.db = mongodb_client[self.db_name]
         self.snippets: Collection = self.db[self.snippets_collection_name]
         self.collections: Collection = self.db[self.collections_collection_name]
@@ -32,7 +32,7 @@ class SnippetManagementService:
             self.collections.create_index("user_id", unique=True)
             self.logger.info("Created indexes for snippets module")
         except PyMongoError as e:
-            self.logger.warning(f"Could not create index: {e}")
+            self.logger.error(f"Could not create index: {e}")
 
     def create_snippet(self, user_id: str, content: str, tags: Optional[List[str]] = None) -> Dict[str, Any]:
         """
@@ -81,7 +81,7 @@ class SnippetManagementService:
                 try:
                     snippets.append(SnippetModel(**s))
                 except Exception as e:
-                    self.logger.warning(f"Error converting snippet data: {e}")
+                    self.logger.error(f"Error converting snippet data: {e}")
                     continue
 
             return {"snippets": snippets, "total_count": len(snippets)}

@@ -2,20 +2,19 @@ import hashlib
 import os
 import subprocess
 import threading
-from dotenv import load_dotenv
+from core.config import settings
+from core.log_util import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
-import logging
 from utils.s3_utils import zip_folder, upload_file_to_s3
 from app.modules.git_repo_setup.management_services import GitRepoManagementService
 from typing import Dict, Any
-load_dotenv()
 
 
 class GitRepoSetupService:
     def __init__(self):
         self.auto_generation_service = AutoGenerationService()
         self.git_repo_management_service = GitRepoManagementService()
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger_instance
 
     def _normalize_github_url(self, github_url: str) -> str:
         url = github_url.rstrip('/')
@@ -31,7 +30,7 @@ class GitRepoSetupService:
         return github_url.split("/")[-1].replace(".git", "")
 
     def clone_repo_to_disk(
-        self, github_url: str, target_base: str = os.getenv("PARENT_DIR")
+        self, github_url: str, target_base: str = settings.PARENT_DIR
     ) -> str:
         """Clone the github repo to a local directory and return the path.
 

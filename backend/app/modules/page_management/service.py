@@ -1,13 +1,11 @@
-import os
-import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
-
-from clients import mongodb_client
-from .models import PageModel
-
+from core.clients import mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
+from app.modules.page_management.models import PageModel
 
 class PageManagementService:
     """
@@ -21,11 +19,11 @@ class PageManagementService:
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger_instance
 
         # Database setup
-        self.db_name = os.getenv("MONGODB_DATABASE", "attd_db")
-        self.collection_name = os.getenv("MONGODB_COLLECTION_PAGES", "pages")
+        self.db_name = settings.DB_NAME
+        self.collection_name = "pages"
         self.db = mongodb_client[self.db_name]
         self.collection: Collection = self.db[self.collection_name]
 
@@ -37,7 +35,7 @@ class PageManagementService:
                 f"Created unique index on id in collection {self.collection_name}"
             )
         except PyMongoError as e:
-            self.logger.warning(f"Could not create index: {e}")
+            self.logger.error(f"Could not create index: {e}")
 
     def create_page(
         self, user_id: str, title: str, content: str = ""
@@ -126,7 +124,7 @@ class PageManagementService:
                     page_model = PageModel(**page_data)
                     pages.append(page_model)
                 except Exception as e:
-                    self.logger.warning(f"Error converting page data: {e}")
+                    self.logger.error(f"Error converting page data: {e}")
                     continue
 
             return {"pages": pages, "total_count": len(pages)}
@@ -252,7 +250,7 @@ class PageManagementService:
                 self.logger.info(f"Successfully saved page with ID: {page_data['id']}")
                 return True
             else:
-                self.logger.warning(f"No changes made for page ID: {page_data['id']}")
+                self.logger.error(f"No changes made for page ID: {page_data['id']}")
                 return False
 
         except PyMongoError as e:
@@ -364,7 +362,7 @@ class PageManagementService:
                 self.logger.info(f"Successfully updated page with ID: {page_id}")
                 return True
             else:
-                self.logger.warning(f"No changes made for page ID: {page_id}")
+                self.logger.error(f"No changes made for page ID: {page_id}")
                 return False
 
         except PyMongoError as e:
@@ -392,7 +390,7 @@ class PageManagementService:
                 self.logger.info(f"Successfully deleted page with ID: {page_id}")
                 return True
             else:
-                self.logger.warning(f"No page found to delete with ID: {page_id}")
+                self.logger.error(f"No page found to delete with ID: {page_id}")
                 return False
 
         except PyMongoError as e:

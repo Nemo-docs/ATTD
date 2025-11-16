@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-import logging
-import os
+from core.config import settings
+from core.log_util import logger_instance
+from core.clients import open_router_client
 from typing import Optional, Tuple
 
 import httpx
 
-from clients import open_router_client
 
 
 class MermaidGenerationValidator:
     """Generate and validate Mermaid diagrams with LLM support."""
 
-    def __init__(self, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self) -> None:
         """Initialize the validator with an optional logger."""
 
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger_instance
 
     def generate_mermaid_diagram(
         self, cursory_explanation: str, max_iterations: int = 10
@@ -47,7 +47,7 @@ class MermaidGenerationValidator:
                 )
                 return (project_diagram, True)
 
-            self.logger.warning(
+            self.logger.error(
                 "Iteration %s: Mermaid validation failed: %s",
                 iteration,
                 error_message,
@@ -56,7 +56,7 @@ class MermaidGenerationValidator:
                 project_diagram, error_message, previous_error_code
             )
 
-        self.logger.warning(
+        self.logger.error(
             "Mermaid validation failed after %s iterations. Returning last diagram.",
             max_iterations,
         )
@@ -102,7 +102,7 @@ class MermaidGenerationValidator:
         """Validate Mermaid diagram syntax via the frontend validation API."""
 
         try:
-            frontend_url = os.getenv("FRONTEND_BASE_URL")
+            frontend_url = settings.FRONTEND_BASE_URL
             validation_url = f"{frontend_url}/api/mermaid/validate"
             self.logger.info("Validating Mermaid diagram via %s", validation_url)
 
@@ -119,7 +119,7 @@ class MermaidGenerationValidator:
                 error_message = result.get("error") if not is_valid else None
                 return (is_valid, error_message)
 
-            self.logger.warning(
+            self.logger.error(
                 "Validation API returned status %s: %s",
                 response.status_code,
                 response.text,

@@ -8,9 +8,10 @@ import tempfile
 from pymongo.errors import PyMongoError
 from typing import Dict, List, Tuple, Any
 from urllib.parse import urlparse
-from clients import mongodb_client
+from core.clients import mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
 from utils.s3_utils import s3, zip_folder, upload_file_to_s3, download_and_extract_zip
-from utils.log_util import logger_instance
 from app.modules.git_repo_setup.models import (
     GitRepoModel,
     MerkleTreeData,
@@ -358,7 +359,7 @@ class MerkleHashService:
 class GitRepoManagementService:
     def __init__(self):
         self.merkle_service = MerkleHashService()
-        self.db = mongodb_client[os.getenv("DB_NAME")]
+        self.db = mongodb_client[settings.DB_NAME]
         self.git_repos_collection = self.db["git_repos"]
         
         # Create index on repo_hash for faster lookups
@@ -368,7 +369,7 @@ class GitRepoManagementService:
                 f"Created unique index on repo_hash in collection {self.git_repos_collection}"
             )
         except PyMongoError as e:
-            logger_instance.warning(f"Could not create index: {e}")
+            logger_instance.error(f"Could not create index: {e}")
 
 
     def _normalize_github_url(self, github_url: str) -> str:
@@ -490,7 +491,7 @@ class GitRepoManagementService:
             repo_name = self._repo_name_from_url(normalized_url)
 
             # Resolve target_base fallback
-            target_base: str = os.getenv("PARENT_DIR")
+            target_base: str = settings.PARENT_DIR
 
             # Determine destination path
             dest = os.path.join(target_base, repo_hash)
@@ -744,7 +745,7 @@ class GitRepoManagementService:
             logger_instance.info(f"Preserved roles - files: {preserved_files}, directories: {preserved_dirs}")
         except Exception as e:
             # Be safe: never block updates due to errors here
-            logger_instance.warning(f"_preserve_unchanged_roles skipped due to error: {e}")
+            logger_instance.error(f"_preserve_unchanged_roles skipped due to error: {e}")
 
     def get_updated_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
         """
@@ -793,7 +794,7 @@ class GitRepoManagementService:
                 logger_instance.info(f"No changes detected for repo {repo_hash}. Downloading from S3...")
                 
                 # Determine local extraction path
-                target_base = os.getenv("PARENT_DIR")
+                target_base = settings.PARENT_DIR
                 local_path = os.path.join(target_base, repo_hash)
                 
                 # Create directory if needed
@@ -1120,7 +1121,7 @@ class GitRepoManagementService:
                 try:
                     repo_model = GitRepoModel(**repo_model)
                 except Exception as e:
-                    logger_instance.warning(f"get_all_role_map: could not coerce dict to GitRepoModel: {e}")
+                    logger_instance.error(f"get_all_role_map: could not coerce dict to GitRepoModel: {e}")
                     return {}
 
             if not repo_model or not repo_model.merkle_tree:
@@ -1146,5 +1147,5 @@ class GitRepoManagementService:
             logger_instance.info(f"Aggregated roles - files: {file_count}, directories: {dir_count}")
             return roles
         except Exception as e:
-            logger_instance.warning(f"get_all_role_map encountered error: {e}")
+            logger_instance.error(f"get_all_role_map encountered error: {e}")
             return {}

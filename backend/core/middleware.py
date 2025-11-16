@@ -1,9 +1,13 @@
-import os
 import httpx
-from clients import clerk_client, PUBLIC_PREFIXES
-from fastapi import Request, Response
+from core.config import settings
+from core.clients import clerk_client
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from clerk_backend_api.security.types import AuthenticateRequestOptions
+
+# Define public paths that bypass authentication
+PUBLIC_PREFIXES = ("/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
+
 
 
 # Add authentication middleware
@@ -23,7 +27,7 @@ async def auth_middleware(request: Request, call_next):
         headers=dict(request.headers)
     )
 
-    auth_parties = [os.getenv("FRONTEND_BASE_URL")]
+    auth_parties = [settings.FRONTEND_BASE_URL]
     if "/api/snippets" in request.url.path:
         auth_parties.append("*")
 

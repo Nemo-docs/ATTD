@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-import logging
-
+from core.log_util import logger_instance
 from app.modules.inline_qna.services import InlineQnaService
 from app.modules.inline_qna.schema import (
     InlineQnaRequest,
@@ -12,8 +11,6 @@ router = APIRouter(prefix="/inline-qna", tags=["inline-qna"])
 
 # Initialize service
 inline_qna_service = InlineQnaService()
-logger = logging.getLogger(__name__)
-
 
 @router.post("/answer", response_model=InlineQnaResponse)
 async def answer_query(
@@ -32,8 +29,8 @@ async def answer_query(
         Response containing the original query data and the generated answer
     """
     try:
-        logger.info(f"Received inline Q&A request for page: {request.page_id}")
-        logger.info(f"Request: {request.cursor_position}")
+        logger_instance.info(f"Received inline Q&A request for page: {request.page_id}")
+        logger_instance.info(f"Request: {request.cursor_position}")
         # Generate answer using the service
         result = inline_qna_service.answer_query(
             text=request.text,
@@ -43,7 +40,7 @@ async def answer_query(
 
         # Check if there was an error during generation
         if "error" in result:
-            logger.error(f"Q&A generation failed: {result['error']}")
+            logger_instance.error(f"Q&A generation failed: {result['error']}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate answer: {result['error']}",
@@ -58,13 +55,13 @@ async def answer_query(
             created_at=result["created_at"],
         )
 
-        logger.info(f"Successfully generated answer for page: {request.page_id}")
+        logger_instance.info(f"Successfully generated answer for page: {request.page_id}")
         return response
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in answer_query: {str(e)}")
+        logger_instance.error(f"Unexpected error in answer_query: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",

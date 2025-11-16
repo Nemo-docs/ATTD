@@ -1,9 +1,10 @@
-import logging
 import uuid
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime
-from clients import open_router_client, mongodb_client
+from core.clients import open_router_client, mongodb_client
+from core.config import settings
+from core.log_util import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.chat_qa.handle_agentic_request import run_agentic_loop
 from app.modules.chat_qa.models import ChatQaModel, ChatConversationModel
@@ -18,7 +19,7 @@ class ChatQaService:
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger_instance
         self.max_tokens = 4000  # Reasonable limit for chat responses
         self.default_model = "openai/gpt-4o-mini"  # Fast and capable model
         # Initialize AutoGenerationService for fetching project intros by repo hash.
@@ -27,7 +28,7 @@ class ChatQaService:
         except Exception as e:
             # If the service cannot be initialized (missing DB, clients, etc.),
             # log and continue without project context support.
-            self.logger.warning(f"AutoGenerationService unavailable: {e}")
+            self.logger.error(f"AutoGenerationService unavailable: {e}")
             self.auto_service = None
 
     def generate_response(
@@ -79,7 +80,7 @@ class ChatQaService:
                             f"No project intro found for repo_hash: {repo_hash}"
                         )
                 except Exception as e:
-                    self.logger.warning(
+                    self.logger.error(
                         f"Failed to load project intro for {repo_hash}: {e}"
                     )
 
@@ -138,7 +139,7 @@ class ChatQaService:
             try:
                 self.save_chat_to_db(response_data)
             except Exception as e:
-                self.logger.warning(f"Failed to save chat to DB: {e}")
+                self.logger.error(f"Failed to save chat to DB: {e}")
 
             self.logger.info(f"Successfully generated chat response: {response_id}")
             return response_data
@@ -310,7 +311,7 @@ class ChatQaService:
         Returns:
             Dict containing the response and metadata
         """
-        repo_path = os.getenv("PARENT_DIR") + "/" + repo_hash
+        repo_path = settings.PARENT_DIR + "/" + repo_hash
         if os.path.exists(repo_path):
             pass
         else:
@@ -397,7 +398,7 @@ class ChatQaService:
             try:
                 self.save_chat_to_db(response_data)
             except Exception as e:
-                self.logger.warning(f"Failed to save agentic chat to DB: {e}")
+                self.logger.error(f"Failed to save agentic chat to DB: {e}")
 
             self.logger.info(f"Successfully generated chat response: {response_id}")
             return response_data
@@ -453,7 +454,7 @@ class ChatQaService:
             try:
                 self.save_conversation_to_db(conversation_data)
             except Exception as e:
-                self.logger.warning(f"Failed to save conversation to DB: {e}")
+                self.logger.error(f"Failed to save conversation to DB: {e}")
 
             self.logger.info(f"Created new conversation: {conversation_id}")
             return conversation_data
@@ -468,7 +469,7 @@ class ChatQaService:
         This is best-effort and will not raise on DB errors; callers should
         catch exceptions if they need stronger guarantees.
         """
-        db_name = os.getenv("DB_NAME", "attd_db")
+        db_name = settings.DB_NAME
         coll = mongodb_client[db_name]["chat_qa"]
 
         # Build a Pydantic model to validate/normalize the data before saving
@@ -508,7 +509,7 @@ class ChatQaService:
 
         Returns a list of conversation dicts suitable for returning from an API.
         """
-        db_name = os.getenv("DB_NAME", "attd_db")
+        db_name = settings.DB_NAME
         coll = mongodb_client[db_name]["chat_conversations"]
 
         if not user_id:
@@ -550,7 +551,7 @@ class ChatQaService:
         self, conversation_id: str, user_id: Optional[str] = None
     ) -> list[Dict[str, Any]]:
         """Return all chat messages for a given conversation id ordered by created_at."""
-        db_name = os.getenv("DB_NAME", "attd_db")
+        db_name = settings.DB_NAME
         coll = mongodb_client[db_name]["chat_qa"]
 
         if not user_id:
@@ -586,7 +587,7 @@ class ChatQaService:
 
         Uses upsert so creating a conversation is idempotent.
         """
-        db_name = os.getenv("DB_NAME", "attd_db")
+        db_name = settings.DB_NAME
         coll = mongodb_client[db_name]["chat_conversations"]
 
         model = ChatConversationModel.from_request_data(
@@ -655,8 +656,6 @@ Learning - Do not use parentheses '()' in the diagram code.
 Always aim to be maximally helpful while being truthful about your limitations."""
 
             # Call OpenRouter API
-            # self.logging.info("system_prompt: ", system_prompt)
-            # self.logging.info("message: ", message)
             response = open_router_client.chat.completions.create(
                 model="anthropic/claude-3.7-sonnet",
                 messages=[
