@@ -10,7 +10,6 @@ class CreatePageRequest(BaseModel):
 
     title: str = Field(..., description="Page title")
     content: Optional[str] = Field(default="", description="Initial page content")
-    user_id: str = Field(..., min_length=1, description="Owner user identifier")
 
 
 class CreatePageResponse(BaseModel):

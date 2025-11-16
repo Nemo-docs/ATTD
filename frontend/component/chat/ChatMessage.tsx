@@ -22,7 +22,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
 }) => {
   return (
     <div className="flex gap-3 group">
-      <Avatar className="h-8 w-8 mt-1 flex-shrink-0">
+      {/* <Avatar className="h-8 w-8 mt-1 flex-shrink-0">
         {message.role === 'user' ? (
           <>
             <AvatarImage src="" />
@@ -38,25 +38,25 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             </AvatarFallback>
           </>
         )}
-      </Avatar>
+      </Avatar> */}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-muted-foreground font-mono">
+          {/* <span className="text-xs font-medium text-muted-foreground font-mono">
             {message.role === 'user' ? 'You' : 'Assistant'}
-          </span>
+          </span> */}
           {message.diagramMode && (
             <div className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-mono">
               <Network className="h-3 w-3" />
               <span>Diagram</span>
             </div>
           )}
-          <span className="text-xs text-muted-foreground font-mono">
+          {/* <span className="text-xs text-muted-foreground font-mono">
             {message.timestamp.toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit'
             })}
-          </span>
+          </span> */}
         </div>
 
         <Card className={`${message.role === 'user'

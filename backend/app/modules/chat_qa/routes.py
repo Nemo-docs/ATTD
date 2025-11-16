@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 import logging
 
 from app.modules.chat_qa.service import ChatQaService
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @router.post("/message", response_model=ChatQaResponse)
 async def send_chat_message(
     request: ChatQaRequest,
+    req: Request,
 ) -> ChatQaResponse:
     """
     Send a chat message and get AI response.
@@ -34,15 +35,18 @@ async def send_chat_message(
         Response containing the AI-generated answer and metadata
     """
     try:
+        # Get user_id from request state (set by middleware)
+        user_id = req.state.user_id
+
         logger.info(f"Received chat message: {request.message[:50]}...")
         logger.info(f"Conversation ID: {request.conversation_id}")
         logger.info(f"Page ID: {request.page_id}")
         logger.info(f"Repo Hash: {request.repo_hash}")
         logger.info(f"Think level: {getattr(request, 'think_level', None)}")
-        logger.info(f"User ID: {request.user_id}")
+        logger.info(f"User ID: {user_id}")
 
         # Route the request to the appropriate handler in the service
-        result = chat_qa_service.route_request(request)
+        result = chat_qa_service.route_request(request, user_id)
 
         # Check if there was an error during generation
         if "error" in result:
@@ -68,7 +72,7 @@ async def send_chat_message(
             model_used=result["model_used"],
             tokens_used=result["tokens_used"],
             created_at=result["created_at"],
-            user_id=result.get("user_id"),
+            user_id=user_id,
         )
 
         logger.info(f"Successfully generated chat response: {response.id}")
@@ -87,6 +91,7 @@ async def send_chat_message(
 @router.post("/conversation", response_model=ChatConversationResponse)
 async def create_conversation(
     request: ChatConversationRequest,
+    req: Request,
 ) -> ChatConversationResponse:
     """
     Create a new chat conversation.
@@ -100,14 +105,18 @@ async def create_conversation(
         Response containing the new conversation information
     """
     try:
+        # Get user_id from request state (set by middleware)
+        user_id = req.state.user_id
+
         logger.info(f"Creating new conversation with title: {request.title}")
         logger.info(f"Associated page ID: {request.page_id}")
+        logger.info(f"User ID: {user_id}")
 
         # Create conversation using the service
         result = chat_qa_service.create_conversation(
             title=request.title,
             page_id=request.page_id,
-            user_id=request.user_id,
+            user_id=user_id,
         )
 
         # Check if there was an error during creation
@@ -148,9 +157,10 @@ async def create_conversation(
 
 
 @router.get("/conversations", response_model=list[ChatConversationResponse])
-async def list_conversations(user_id: str):
-    """List conversations for the given user."""
+async def list_conversations(req: Request):
+    """List conversations for the authenticated user."""
     try:
+        user_id = req.state.user_id
         results = chat_qa_service.get_conversations(user_id=user_id)
         return results
     except ValueError as e:
@@ -164,9 +174,10 @@ async def list_conversations(user_id: str):
 
 
 @router.get("/conversation/{conversation_id}")
-async def get_conversation_messages(conversation_id: str, user_id: str):
-    """Return messages for a conversation belonging to the user."""
+async def get_conversation_messages(conversation_id: str, req: Request):
+    """Return messages for a conversation belonging to the authenticated user."""
     try:
+        user_id = req.state.user_id
         messages = chat_qa_service.get_conversation_messages(
             conversation_id, user_id=user_id
         )

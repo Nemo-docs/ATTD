@@ -1,7 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { pageApi } from '@/lib/api';
-import { resolveUserId } from '@/lib/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -229,9 +228,7 @@ const Canvas = forwardRef<CanvasHandle, Props>(({ initial = '', title = 'Canvas'
     const name = (pageName || '').trim() || 'Untitled Page';
     setSaving(true);
     try {
-      const userId = resolveUserId();
-
-      await pageApi.createPage({ title: name, content, userId });
+      await pageApi.createPage({ title: name, content });
       // show saved dialog with confetti
       setNameDialogOpen(false);
       setSavedDialogOpen(true);

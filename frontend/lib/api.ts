@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { useAuth } from '@clerk/nextjs';
 import { Page, CreatePageRequest, UpdatePageRequest } from '../types/page';
 import { InlineQnaRequest, InlineQnaResponse } from '../types/inline-qna';
 import { ChatRequest, ChatResponse } from '../types/chat';
@@ -9,6 +10,34 @@ const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://loc
 // Ensure no trailing slash
 const cleanBaseUrl = BACKEND_BASE_URL.replace(/\/$/, '');
 
+// Authenticated fetch hook using Clerk
+export function useAuthenticatedFetch() {
+  const { getToken } = useAuth();
+
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = await getToken();
+
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
+
+  return authenticatedFetch;
+}
+
+// Global authenticated fetch function (for internal use only)
+let globalAuthenticatedFetch: ((url: string, options?: RequestInit) => Promise<Response>) | null = null;
+
+// Hook to initialize the global authenticated fetch
+export function useInitializeAuth() {
+  const authenticatedFetch = useAuthenticatedFetch();
+  globalAuthenticatedFetch = authenticatedFetch;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -16,19 +45,26 @@ export class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  if (!globalAuthenticatedFetch) {
+    throw new Error('Authentication not initialized. Make sure to call useInitializeAuth() in a component.');
+  }
+
   const url = `${cleanBaseUrl}/api${endpoint}`;
   console.log('url', url);
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
+
+  const response =
+     await globalAuthenticatedFetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      })
+
 
   if (!response.ok) {
     const error = await response.text().catch(() => 'Unknown error');
@@ -38,15 +74,16 @@ async function apiRequest<T>(
   return response.json();
 }
 
+
 export const pageApi = {
   // Get all pages
-  getAllPages: async (userId: string): Promise<{ pages: Page[]; total_count: number }> => {
-    return apiRequest(`/pages/?user_id=${encodeURIComponent(userId)}`);
+  getAllPages: async (): Promise<{ pages: Page[]; total_count: number }> => {
+    return apiRequest('/pages/');
   },
 
   // Get a single page by ID
-  getPage: async (pageId: string, userId: string): Promise<{ page: Page }> => {
-    return apiRequest(`/pages/${pageId}?user_id=${encodeURIComponent(userId)}`);
+  getPage: async (pageId: string): Promise<{ page: Page }> => {
+    return apiRequest(`/pages/${pageId}`);
   },
 
   // Create a new page
@@ -56,7 +93,6 @@ export const pageApi = {
       body: JSON.stringify({
         title: data.title,
         content: data.content ?? '',
-        user_id: data.userId,
       }),
     });
   },
@@ -64,10 +100,9 @@ export const pageApi = {
   // Update a page
   updatePage: async (
     pageId: string,
-    userId: string,
     data: UpdatePageRequest
   ): Promise<{ page: Page; message: string }> => {
-    return apiRequest(`/pages/${pageId}?user_id=${encodeURIComponent(userId)}`, {
+    return apiRequest(`/pages/${pageId}`, {
       method: 'PUT',
       body: JSON.stringify({
         title: data.title,
@@ -77,11 +112,8 @@ export const pageApi = {
   },
 
   // Delete a page
-  deletePage: async (
-    pageId: string,
-    userId: string
-  ): Promise<{ message: string; deleted_page_id: string }> => {
-    return apiRequest(`/pages/${pageId}?user_id=${encodeURIComponent(userId)}`, {
+  deletePage: async (pageId: string): Promise<{ message: string; deleted_page_id: string }> => {
+    return apiRequest(`/pages/${pageId}`, {
       method: 'DELETE',
     });
   },
@@ -127,7 +159,9 @@ export const chatApi = {
 
 export const chatQaApi = {
   // Send a chat message and get AI response
-  sendMessage: async (data: ChatQaRequest & { thinkLevel?: 'simple' | 'detailed' }): Promise<ChatQaResponse> => {
+  sendMessage: async (
+    data: ChatQaRequest & { thinkLevel?: 'simple' | 'detailed' }
+  ): Promise<ChatQaResponse> => {
     return apiRequest('/chat-qa/message', {
       method: 'POST',
       body: JSON.stringify({
@@ -140,7 +174,6 @@ export const chatQaApi = {
         repo_hash: (data as any).repoHash ?? (data as any).repo_hash,
         // think level controls how the model reasons: 'simple' or 'detailed'
         think_level: (data as any).thinkLevel ?? (data as any).think_level ?? 'simple',
-        user_id: (data as any).userId ?? (data as any).user_id,
         mentioned_definations: (data as any).mentionedDefinations ?? (data as any).mentioned_definations,
       }),
     });
@@ -153,27 +186,21 @@ export const chatQaApi = {
       body: JSON.stringify({
         title: data.title,
         page_id: data.pageId,
-        user_id: data.userId,
       }),
     });
   },
 
-  // List conversations for a user
-  listConversations: async (userId: string): Promise<ChatConversationResponse[]> => {
-    return apiRequest(`/chat-qa/conversations?user_id=${encodeURIComponent(userId)}`);
+  // List conversations for the authenticated user
+  listConversations: async (): Promise<ChatConversationResponse[]> => {
+    return apiRequest('/chat-qa/conversations');
   },
 
-  // List conversations for a page
-  // listConversations: async (pageId?: string): Promise<ChatConversationResponse[]> => {
-  //   return apiRequest(`/chat-qa/conversations${userId}`);
-  // },
 
   // Get conversation messages
   getConversationMessages: async (
-    conversationId: string,
-    userId: string
+    conversationId: string
   ): Promise<{ messages: ChatQaResponse[] }> => {
-    return apiRequest(`/chat-qa/conversation/${conversationId}?user_id=${encodeURIComponent(userId)}`);
+    return apiRequest(`/chat-qa/conversation/${conversationId}`);
   },
 
   // Health check for chat QA service
@@ -184,7 +211,9 @@ export const chatQaApi = {
 
 export const repoApi = {
   // Create a repo entry and trigger cloning on backend
-  createRepo: async (data: { github_url: string }): Promise<{ repo_hash: string; github_url: string; name: string } | { error: string }> => {
+  createRepo: async (
+    data: { github_url: string }
+  ): Promise<{ repo_hash: string; github_url: string; name: string } | { error: string }> => {
     return apiRequest('/git-repo/create', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -192,9 +221,7 @@ export const repoApi = {
   },
 
   // Retrieve repository metadata by repo hash
-  getRepo: async (
-    repoHash: string
-  ): Promise<
+  getRepo: async (repoHash: string): Promise<
     {
       repo_hash: string;
       project_intro?: string | null;
@@ -283,3 +310,5 @@ export const mermaidApi = {
     return mermaidValidationResponseSchema.parse(result);
   },
 };
+
+export { globalAuthenticatedFetch };

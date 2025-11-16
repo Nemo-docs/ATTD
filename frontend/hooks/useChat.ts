@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams, useParams } from 'next/navigation';
 import { chatQaApi } from '@/lib/api';
-import { resolveUserId } from '@/lib/user';
 import { useDefinitions } from '@/hooks/useDefinitions';
 import { ChatMessage, ChatConversation } from '@/types/chat';
 import { ChatQaRequest, ChatConversationRequest, ChatConversationResponse, ChatQaResponse } from '@/types/chat-qa';
@@ -135,8 +134,6 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
     return () => {};
   }, [currentPageId]);
 
-  const requireUserId = () => resolveUserId();
-
   const handleSuggestionClick = (prompt: string) => {
     setInputValue(prompt);
     // focus textarea and move caret to end
@@ -155,7 +152,6 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
       const requestData: ChatConversationRequest = {
         title,
         pageId: currentPageId,
-        userId: requireUserId(),
       };
 
       const response = await chatQaApi.createConversation(requestData);
@@ -171,8 +167,7 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
   };
   const loadConversation = async (conversation: ChatConversation) => {
     try {
-      const userId = requireUserId();
-      const { messages: records } = await chatQaApi.getConversationMessages(conversation.id, userId);
+      const { messages: records } = await chatQaApi.getConversationMessages(conversation.id);
       const hydratedMessages = hydrateConversationMessages(records, conversation.id, currentPageId);
       const updatedAt = hydratedMessages.length
         ? hydratedMessages[hydratedMessages.length - 1].timestamp
@@ -306,7 +301,6 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
         repoHash: repoId,
         diagramMode: diagramMode,
         thinkLevel: thinkLevel,
-        userId: requireUserId(),
         mentionedDefinations: mentionedDefinations,
       };
 
@@ -428,8 +422,7 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
 
     const bootstrap = async () => {
       try {
-        const userId = requireUserId();
-        const conversationSummaries = await chatQaApi.listConversations(userId);
+        const conversationSummaries = await chatQaApi.listConversations();
         const normalizedConversations = conversationSummaries.map(normalizeConversationSummary);
 
         if (!isActive) return;
@@ -441,7 +434,7 @@ export const useChat = ({ pageId }: UseChatProps = {}) => {
         }
 
         try {
-          const { messages: records } = await chatQaApi.getConversationMessages(conversationId, userId);
+          const { messages: records } = await chatQaApi.getConversationMessages(conversationId);
           if (!isActive) return;
 
           const hydratedMessages = hydrateConversationMessages(records, conversationId, currentPageId);

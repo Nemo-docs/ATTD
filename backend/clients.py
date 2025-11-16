@@ -44,4 +44,4 @@ mongodb_client = MongoClient(os.getenv("MONGODB_URI"), server_api=ServerApi("1")
 clerk_client = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
 
 # Define public paths that bypass authentication
-PUBLIC_PREFIXES = ("/health", "/metrics", "/api", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
+PUBLIC_PREFIXES = ("/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth

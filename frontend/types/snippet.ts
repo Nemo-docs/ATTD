@@ -1,6 +1,5 @@
 export type Snippet = {
   id: string;
-  userId: string;
   content: string;
   tags: string[];
   createdAt: string; // ISO string
@@ -8,7 +7,6 @@ export type Snippet = {
 };
 
 export type CreateSnippetRequest = {
-  userId: string;
   content: string;
   tags?: string[];
 };

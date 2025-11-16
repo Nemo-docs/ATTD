@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText } from "lucide-react";
 import { KeysModal } from "@/component/keys/KeysModal";
 import { pageApi, chatQaApi } from "@/lib/api";
-import { resolveUserId } from "@/lib/user";
 import { Page } from "@/types/page";
 
 export function SlidingSidebar() {
@@ -36,8 +35,7 @@ export function SlidingSidebar() {
       try {
         setPagesLoading(true);
         setPagesError(null);
-        const userId = resolveUserId();
-        const response = await pageApi.getAllPages(userId);
+        const response = await pageApi.getAllPages();
         if (!isActive) return;
         setPages(response.pages ?? []);
       } catch (error) {
@@ -80,8 +78,7 @@ export function SlidingSidebar() {
     try {
       setCreatingChat(true);
       setChatError(null);
-      const userId = resolveUserId();
-      const response = await chatQaApi.createConversation({ userId });
+      const response = await chatQaApi.createConversation({});
       router.push(`/repo/${repoId}/conversation/${response.id}`);
     } catch (error) {
       console.error("Failed to create conversation:", error);

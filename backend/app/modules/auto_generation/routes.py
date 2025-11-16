@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from typing import Dict, List
 import logging
 import json
@@ -229,7 +229,7 @@ async def delete_project_intro_by_hash(repo_hash: str) -> Dict:
         )
 
 @router.get("/definitions/{repo_hash}")
-async def get_definitions(repo_hash: str, parse_definitions: ParseDefinitionsService = Depends(ParseDefinitionsService)) -> List[Dict]:
+async def get_definitions(repo_hash: str, req: Request, parse_definitions: ParseDefinitionsService = Depends(ParseDefinitionsService)) -> List[Dict]:
     try:
         definitions = parse_definitions.get_all_node_short_info(repo_hash)
         return definitions

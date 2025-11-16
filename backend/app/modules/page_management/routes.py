@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from typing import Dict, List
 import logging
 
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @router.post("/create", response_model=CreatePageResponse)
 async def create_page(
     request: CreatePageRequest,
+    req: Request,
 ) -> CreatePageResponse:
     """
     Create a new page with a random ID.
@@ -34,28 +35,25 @@ async def create_page(
 
     Args:
         request: Page creation request containing title and optional content
+        req: FastAPI request object containing authenticated user info
 
     Returns:
         Created page data and success message
     """
     try:
-        logger.info(f"Creating new page: {request.title}")
+        user_id = req.state.user_id
+        logger.info(f"Creating new page: {request.title} for user: {user_id}")
 
         # Create the page
         result = page_service.create_page(
-            user_id=request.user_id, title=request.title, content=request.content
+            user_id=user_id, title=request.title, content=request.content
         )
 
         # Check if there was an error during creation
         if "error" in result:
             logger.error(f"Page creation failed: {result['error']}")
-            status_code_value = (
-                status.HTTP_400_BAD_REQUEST
-                if result["error"] == "user_id is required"
-                else status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
             raise HTTPException(
-                status_code=status_code_value,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create page: {result['error']}",
             )
 
@@ -73,27 +71,26 @@ async def create_page(
 
 
 @router.get("/", response_model=GetPagesResponse)
-async def get_all_pages(user_id: str) -> GetPagesResponse:
+async def get_all_pages(req: Request) -> GetPagesResponse:
     """
-    Retrieve all pages in the system.
+    Retrieve all pages for the authenticated user.
 
+    Args:
+        req: FastAPI request object containing authenticated user info
+WWDC 
     Returns:
         List of all pages and total count
     """
     try:
+        user_id = req.state.user_id
         logger.info(f"Retrieving all pages for user: {user_id}")
 
         result = page_service.get_all_pages(user_id=user_id)
 
         if "error" in result:
             logger.error(f"Failed to retrieve pages: {result['error']}")
-            status_code_value = (
-                status.HTTP_400_BAD_REQUEST
-                if result["error"] == "user_id is required"
-                else status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
             raise HTTPException(
-                status_code=status_code_value,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve pages: {result['error']}",
             )
 
@@ -113,17 +110,19 @@ async def get_all_pages(user_id: str) -> GetPagesResponse:
 
 
 @router.get("/{page_id}", response_model=GetPageResponse)
-async def get_page(page_id: str, user_id: str) -> GetPageResponse:
+async def get_page(page_id: str, req: Request) -> GetPageResponse:
     """
     Retrieve a specific page by its ID.
 
     Args:
         page_id: The unique page identifier
+        req: FastAPI request object containing authenticated user info
 
     Returns:
         Page data if found, 404 if not found
     """
     try:
+        user_id = req.state.user_id
         logger.info(f"Retrieving page with ID: {page_id} for user {user_id}")
 
         result = page_service.get_page(page_id, user_id=user_id)
@@ -136,13 +135,8 @@ async def get_page(page_id: str, user_id: str) -> GetPageResponse:
 
         if "error" in result:
             logger.error(f"Database error: {result['error']}")
-            status_code_value = (
-                status.HTTP_400_BAD_REQUEST
-                if result["error"] == "user_id is required"
-                else status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
             raise HTTPException(
-                status_code=status_code_value,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {result['error']}",
             )
 
@@ -167,8 +161,8 @@ async def get_page(page_id: str, user_id: str) -> GetPageResponse:
 @router.put("/{page_id}", response_model=UpdatePageResponse)
 async def update_page(
     page_id: str,
-    user_id: str,
     request: UpdatePageRequest,
+    req: Request,
 ) -> UpdatePageResponse:
     """
     Update a page's title and/or content.
@@ -176,11 +170,13 @@ async def update_page(
     Args:
         page_id: The unique page identifier
         request: Page update request containing optional title and content
+        req: FastAPI request object containing authenticated user info
 
     Returns:
         Updated page data and success message
     """
     try:
+        user_id = req.state.user_id
         logger.info(f"Updating page with ID: {page_id} for user {user_id}")
 
         # Update the page
@@ -200,13 +196,8 @@ async def update_page(
                 )
             else:
                 logger.error(f"Page update failed: {result['error']}")
-                status_code_value = (
-                    status.HTTP_400_BAD_REQUEST
-                    if result["error"] == "user_id is required"
-                    else status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
                 raise HTTPException(
-                    status_code=status_code_value,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to update page: {result['error']}",
                 )
 
@@ -224,17 +215,19 @@ async def update_page(
 
 
 @router.delete("/{page_id}", response_model=DeletePageResponse)
-async def delete_page(page_id: str, user_id: str) -> DeletePageResponse:
+async def delete_page(page_id: str, req: Request) -> DeletePageResponse:
     """
     Delete a page by its ID.
 
     Args:
         page_id: The unique page identifier
+        req: FastAPI request object containing authenticated user info
 
     Returns:
         Success message with deleted page ID
     """
     try:
+        user_id = req.state.user_id
         logger.info(f"Deleting page with ID: {page_id} for user {user_id}")
 
         # Delete the page
@@ -249,13 +242,8 @@ async def delete_page(page_id: str, user_id: str) -> DeletePageResponse:
                 )
             else:
                 logger.error(f"Page deletion failed: {result['error']}")
-                status_code_value = (
-                    status.HTTP_400_BAD_REQUEST
-                    if result["error"] == "user_id is required"
-                    else status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
                 raise HTTPException(
-                    status_code=status_code_value,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to delete page: {result['error']}",
                 )
 

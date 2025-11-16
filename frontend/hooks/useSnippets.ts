@@ -67,7 +67,7 @@ const applySearch = (list: Snippet[], query: string) => {
     .map(({ snippet }) => snippet);
 };
 
-export const useSnippets = (userId: string): UseSnippetsResult => {
+export const useSnippets = (): UseSnippetsResult => {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [filteredSnippets, setFilteredSnippets] = useState<Snippet[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -84,15 +84,13 @@ export const useSnippets = (userId: string): UseSnippetsResult => {
   }, []);
 
   const loadSnippets = useCallback(async () => {
-    if (!userId) return;
-
     setIsLoading(true);
     setError(null);
     try {
-      const response = await snippetApi.getAllSnippets(userId);
+      const response = await snippetApi.getAllSnippets();
       if (response.total_count === 0) {
         try {
-          await snippetApi.ensureCollection(userId);
+          await snippetApi.ensureCollection();
         } catch (ensureError) {
           console.warn("ensureCollection failed", ensureError);
         }
@@ -104,7 +102,7 @@ export const useSnippets = (userId: string): UseSnippetsResult => {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, syncSnippets]);
+  }, [syncSnippets]);
 
   useEffect(() => {
     loadSnippets();

@@ -64,12 +64,6 @@ class ChatQaRequest(BaseModel):
         description="Thinking level for responses: 'simple' or 'detailed'",
         example="simple",
     )
-    user_id: str = Field(
-        ...,
-        description="Identifier of the user initiating the chat",
-        example="1234567890123456",
-        min_length=1,
-    )
     mentioned_definations: Optional[List[MentionedDefinition]] = Field(
         None,
         description="Optional list of mentioned definitions",
@@ -125,11 +119,7 @@ class ChatQaResponse(BaseModel):
         description="Creation timestamp",
         example="2025-01-01T00:00:00Z",
     )
-    user_id: Optional[str] = Field(
-        None,
-        description="Identifier of the user owning the response",
-        example="1234567890123456",
-    )
+ 
 
 
 class ChatConversationRequest(BaseModel):
@@ -145,12 +135,6 @@ class ChatConversationRequest(BaseModel):
         None,
         description="Optional page ID for context",
         example="page_1234567890",
-    )
-    user_id: str = Field(
-        ...,
-        description="Identifier of the user owning the conversation",
-        example="1234567890123456",
-        min_length=1,
     )
 
 
@@ -187,11 +171,7 @@ class ChatConversationResponse(BaseModel):
         description="Last update timestamp",
         example="2025-01-01T00:00:00Z",
     )
-    user_id: str = Field(
-        ...,
-        description="Identifier of the user owning the conversation",
-        example="1234567890123456",
-    )
+ 
 
 
 class ErrorResponse(BaseModel):

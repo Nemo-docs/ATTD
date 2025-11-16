@@ -194,6 +194,145 @@ main {
   display: none;  /* Chrome, Safari and Opera */
 }
 
+/* Liquid Glass Design System */
+
+/* Base Liquid Glass style */
+.liquid-glass {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px) saturate(160%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18),
+              inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.liquid-glass:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Light mode Liquid Glass */
+@media (prefers-color-scheme: light) {
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(160%) brightness(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  .liquid-glass:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+}
+
+/* Dark mode Liquid Glass (default for this app) */
+.dark .liquid-glass {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px) saturate(160%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.dark .liquid-glass:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Liquid Glass Variants */
+
+/* Small elements: 12px border radius */
+.liquid-glass-sm {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px) saturate(160%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18),
+              inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.liquid-glass-sm:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Cards: 16-24px border radius */
+.liquid-glass-card {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px) saturate(160%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18),
+              inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.liquid-glass-card:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Panels: 24-32px border radius */
+.liquid-glass-panel {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px) saturate(160%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18),
+              inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.liquid-glass-panel:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Strong blur for navigation */
+.liquid-glass-nav {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(30px) saturate(180%) brightness(0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  padding: 12px 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18),
+              inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.liquid-glass-nav:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Typography for Liquid Glass */
+.liquid-glass-title {
+  font-family: -apple-system, BlinkMacMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.liquid-glass-body {
+  font-family: -apple-system, BlinkMacMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.liquid-glass-label {
+  font-family: -apple-system, BlinkMacMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

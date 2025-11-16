@@ -7,12 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Pencil, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { snippetApi } from "@/lib/snippetApi";
-import { resolveUserId } from "@/lib/user";
 import { useSnippets } from "@/hooks/useSnippets";
 import type { Snippet, CreateSnippetRequest, UpdateSnippetRequest } from "@/types/snippet";
 
 export default function SnippetsPage() {
-  const [userId] = useState<string>(() => (typeof window !== "undefined" ? resolveUserId() : ""));
   const {
     snippets: cachedSnippets,
     filteredSnippets,
@@ -21,7 +19,7 @@ export default function SnippetsPage() {
     searchQuery,
     searchSnippets,
     refresh,
-  } = useSnippets(userId);
+  } = useSnippets();
   const [newContent, setNewContent] = useState<string>("");
   const [newTags, setNewTags] = useState<string>("");
   const [editTarget, setEditTarget] = useState<Snippet | null>(null);
@@ -59,7 +57,6 @@ export default function SnippetsPage() {
   const handleCreateSnippet = async () => {
     if (!newContent.trim()) return;
     const payload: CreateSnippetRequest = {
-      userId,
       content: newContent.trim(),
       tags: parseTags(newTags),
     };
@@ -121,7 +118,7 @@ export default function SnippetsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await snippetApi.deleteSnippet(deleteTarget.id, userId);
+      await snippetApi.deleteSnippet(deleteTarget.id);
       await refresh();
       closeDeleteDialog();
     } catch (e) {
@@ -135,7 +132,7 @@ export default function SnippetsPage() {
     if (!tagTarget || !tagValue.trim()) return;
     try {
       const update: UpdateSnippetRequest = { addTags: [tagValue.trim()] };
-      await snippetApi.updateSnippet(tagTarget.id, userId, update);
+      await snippetApi.updateSnippet(tagTarget.id, update);
       closeTagDialog();
       await refresh();
     } catch (e) {
@@ -150,7 +147,7 @@ export default function SnippetsPage() {
         content: editContentValue.trim(),
         tags: parseTags(editTagsValue),
       };
-      await snippetApi.updateSnippet(editTarget.id, userId, update);
+      await snippetApi.updateSnippet(editTarget.id, update);
       closeEditDialog();
       await refresh();
     } catch (e) {

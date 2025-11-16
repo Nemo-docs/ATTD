@@ -235,9 +235,6 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
         logger.warning(f"Maximum iterations ({max_iterations}) reached")
         print("Warning: Maximum iterations reached")
 
-    # put messages in a json file
-    with open("messages.json", "w") as f:
-        json.dump(messages, f)
     logger.info(f"Agentic loop completed after {iteration_count} iterations")
     return messages[-1]["content"]
 

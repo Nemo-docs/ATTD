@@ -5,7 +5,6 @@ export interface ChatQaRequest {
   repoHash?: string;
   diagramMode?: boolean;
   thinkLevel?: 'simple' | 'detailed';
-  userId: string;
   mentionedDefinations?: Array<{node_name: string, file_name: string, start_end_lines: number[], node_type: 'file' | 'class' | 'function'}>;
 }
 
@@ -19,13 +18,11 @@ export interface ChatQaResponse {
   modelUsed: string;
   tokensUsed: number;
   createdAt: string;
-  userId?: string;
 }
 
 export interface ChatConversationRequest {
   title?: string;
   pageId?: string;
-  userId: string;
 }
 
 export interface ChatConversationResponse {
@@ -35,7 +32,6 @@ export interface ChatConversationResponse {
   messageCount: number;
   createdAt: string;
   updatedAt: string;
-  userId: string;
 }
 
 export interface ChatQaError {

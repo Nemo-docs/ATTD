@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { resolveUserId } from "@/lib/user";
 import { useGetToken } from "@/hooks/getToken";
 import {
   Dialog,
@@ -21,19 +20,8 @@ interface KeysModalProps {
 }
 
 export function KeysModal({ open, onOpenChange }: KeysModalProps) {
-  const [userId, setUserId] = useState<string>("");
   const [hasCreatedKey, setHasCreatedKey] = useState(false);
   const { apiKey, isLoading, error, generateKey, clearApiKey } = useGetToken();
-
-  // Load user ID on mount
-  useEffect(() => {
-    try {
-      const id = resolveUserId();
-      setUserId(id);
-    } catch (error) {
-      console.error("Failed to resolve user ID:", error);
-    }
-  }, []);
 
   // Check localStorage for created flag on mount (SSR-safe)
   useEffect(() => {
@@ -89,12 +77,12 @@ export function KeysModal({ open, onOpenChange }: KeysModalProps) {
         
         <div className="space-y-4 py-4">
           {/* User ID Display */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">User ID</label>
+          {/* <div className="space-y-2">
+            <label className="text-sm font-medium">API Key</label>
             <div className="p-3 bg-muted rounded-md font-mono text-sm">
-              {userId || "Loading..."}
+              {apiKey || "Loading..."}
             </div>
-          </div>
+          </div> */}
 
           {/* API Key Section */}
           <div className="space-y-2">

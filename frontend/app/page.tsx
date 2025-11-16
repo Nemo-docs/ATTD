@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import IndexSidebar from "../component/index_sidebar/index_sidebar";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { pageApi, repoApi, userApi } from "../lib/api";
-import { ensureUserId, resolveUserId } from "../lib/user";
+import { useAuth } from "@clerk/nextjs";
+import { pageApi, repoApi, userApi, useAuthenticatedFetch } from "../lib/api";
+// import { ensureUserId, resolveUserId } from "../lib/user";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, FileText, Bot } from "lucide-react";
+import { Bot } from "lucide-react";
 
 
 type ViewMode = 'chat' | 'editor';
@@ -26,6 +25,8 @@ type ViewMode = 'chat' | 'editor';
  */
 export default function Home() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
   const [currentPageId, setCurrentPageId] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>('chat'); // Default to chat interface
 
@@ -33,43 +34,31 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
+  // useEffect(() => {
+  //   const ensureUser = async () => {
+  //     if (typeof window === "undefined") {
+  //       return;
+  //     }
+
+  //     try {
+  //       const userId = ensureUserId();
+
+  //       await userApi.register(userId, authenticatedFetch);
+  //     } catch (error) {
+  //       console.warn("Failed to register anonymous user", error);
+  //     }
+  //   };
+
+  //   void ensureUser();
+  // }, []);
+
   useEffect(() => {
-    const ensureUser = async () => {
-      if (typeof window === "undefined") {
-        return;
-      }
-
-      try {
-        const userId = ensureUserId();
-
-        await userApi.register(userId);
-      } catch (error) {
-        console.warn("Failed to register anonymous user", error);
-      }
-    };
-
-    void ensureUser();
-  }, []);
-
-  const handleCreatePage = async (title: string, content: string) => {
-    try {
-      const userId = resolveUserId();
-
-      const response = await pageApi.createPage({
-        title: title || "Untitled",
-        content: content,
-        userId,
-      });
-
-      // Navigate to the new page
-      router.push(`/${response.page.id}`);
-      setCurrentPageId(response.page.id);
-      return response.page.id;
-    } catch (error) {
-      console.error('Failed to create page:', error);
-      return null;
+    if (isLoaded && !isSignedIn) {
+      router.replace("/login");
     }
-  };
+  }, [isLoaded, isSignedIn, router]);
+
+
 
   const handleClone = async () => {
     if (!githubUrl) return;
@@ -97,6 +86,20 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#191919] text-white">
+        <Card className="bg-[#262626] border-[#2f2f2f] px-6 py-4 text-sm text-zinc-300">
+          Checking authentication...
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen font-sans bg-[#191919] text-white">

@@ -7,9 +7,26 @@ import {
   deleteSnippetResponseSchema,
 } from "./snippetSchema";
 import type { CreateSnippetRequest, UpdateSnippetRequest, Snippet } from "../types/snippet";
+import {  apiRequest} from "./api";
 
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || "http://localhost:8000";
-const cleanBaseUrl = BACKEND_BASE_URL.replace(/\/$/, "");
+// Authenticated fetch hook using Clerk
+export function useAuthenticatedFetch() {
+  const { getToken } = require('@clerk/nextjs');
+
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = await getToken();
+
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
+
+  return authenticatedFetch;
+}
 
 class ApiError extends Error {
   status: number;
@@ -20,32 +37,14 @@ class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${cleanBaseUrl}/api${endpoint}`;
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    ...options,
-  });
-
-  const text = await response.text().catch(() => "");
-  if (!response.ok) {
-    throw new ApiError(response.status, text || "Unknown error");
-  }
-  const data = text ? JSON.parse(text) : {};
-  return data as T;
-}
 
 export const snippetApi = {
-  getAllSnippets: async (userId: string): Promise<{ snippets: Snippet[]; total_count: number }> => {
-    const res = await apiRequest(`/snippets/?user_id=${encodeURIComponent(userId)}`);
+  getAllSnippets: async (): Promise<{ snippets: Snippet[]; total_count: number }> => {
+    const res = await apiRequest(`/snippets/`);
     console.log("getAllSnippets res", res);
     const parsed = getSnippetsResponseSchema.parse(res);
     const normalizedSnippets = parsed.snippets.map((s: any) => ({
       id: s.id,
-      userId: s.user_id ?? s.userId,
       content: s.content,
       tags: s.tags,
       createdAt: s.created_at ?? s.createdAt,
@@ -55,20 +54,22 @@ export const snippetApi = {
     return { ...parsed, snippets: normalizedSnippets };
   },
 
-  ensureCollection: async (userId: string): Promise<{ message: string }> => {
-    const res = await apiRequest(`/snippets/ensure_collection?user_id=${encodeURIComponent(userId)}`, {
+  ensureCollection: async (
+  ): Promise<{ message: string }> => {
+    const res = await apiRequest(`/snippets/ensure_collection`, {
       method: "POST",
     });
     return res as { message: string };
   },
 
-  getSnippet: async (snippetId: string, userId: string): Promise<{ snippet: Snippet }> => {
-    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}?user_id=${encodeURIComponent(userId)}`);
+  getSnippet: async (
+    snippetId: string,
+  ): Promise<{ snippet: Snippet }> => {
+    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}`);
     const parsed = getSnippetResponseSchema.parse(res);
     const s: any = parsed.snippet;
     const normalizedSnippet = {
       id: s.id,
-      userId: s.user_id ?? s.userId,
       content: s.content,
       tags: s.tags,
       createdAt: s.created_at ?? s.createdAt,
@@ -78,12 +79,13 @@ export const snippetApi = {
     return { ...parsed, snippet: normalizedSnippet };
   },
 
-  createSnippet: async (data: CreateSnippetRequest): Promise<{ snippet: Snippet; message: string }> => {
+  createSnippet: async (
+    data: CreateSnippetRequest,
+  ): Promise<{ snippet: Snippet; message: string }> => {
     const parsed = createSnippetRequestSchema.parse(data);
     const res = await apiRequest("/snippets/create", {
       method: "POST",
       body: JSON.stringify({
-        user_id: parsed.userId,
         content: parsed.content,
         tags: parsed.tags ?? [],
       }),
@@ -92,7 +94,6 @@ export const snippetApi = {
     const s: any = parsedResponse.snippet;
     const normalizedSnippet = {
       id: s.id,
-      userId: s.user_id ?? s.userId,
       content: s.content,
       tags: s.tags,
       createdAt: s.created_at ?? s.createdAt,
@@ -102,13 +103,16 @@ export const snippetApi = {
     return { ...parsedResponse, snippet: normalizedSnippet };
   },
 
-  updateSnippet: async (snippetId: string, userId: string, data: UpdateSnippetRequest): Promise<{ snippet: Snippet; message: string }> => {
+  updateSnippet: async (
+    snippetId: string,
+    data: UpdateSnippetRequest,
+  ): Promise<{ snippet: Snippet; message: string }> => {
     const body: any = {};
     if (data.content !== undefined) body.content = data.content;
     if (data.tags !== undefined) body.tags = data.tags;
     if (data.addTags !== undefined) body.add_tags = data.addTags;
 
-    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}?user_id=${encodeURIComponent(userId)}`, {
+    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}`, {
       method: "PUT",
       body: JSON.stringify(body),
     });
@@ -116,7 +120,6 @@ export const snippetApi = {
     const s: any = parsed.snippet;
     const normalizedSnippet = {
       id: s.id,
-      userId: s.user_id ?? s.userId,
       content: s.content,
       tags: s.tags,
       createdAt: s.created_at ?? s.createdAt,
@@ -126,8 +129,10 @@ export const snippetApi = {
     return { snippet: normalizedSnippet, message };
   },
 
-  deleteSnippet: async (snippetId: string, userId: string): Promise<{ message: string; deleted_snippet_id: string }> => {
-    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}?user_id=${encodeURIComponent(userId)}`, {
+  deleteSnippet: async (
+    snippetId: string,
+  ): Promise<{ message: string; deleted_snippet_id: string }> => {
+    const res = await apiRequest(`/snippets/${encodeURIComponent(snippetId)}`, {
       method: "DELETE",
     });
     return deleteSnippetResponseSchema.parse(res);

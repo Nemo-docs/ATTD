@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 // import IndexSidebar from "../../component/index_sidebar/index_sidebar";
 import { pageApi } from "../../../../../lib/api";
-import { resolveUserId } from "../../../../../lib/user";
 import { Page } from "../../../../../types/page";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -155,9 +154,8 @@ export default function PageView() {
     try {
       setLoading(true);
       setError(null);
-      const userId = resolveUserId();
 
-      const response = await pageApi.getPage(id, userId);
+      const response = await pageApi.getPage(id);
       setCurrentPage(response.page);
     } catch (err) {
       console.error('Failed to load page:', err);

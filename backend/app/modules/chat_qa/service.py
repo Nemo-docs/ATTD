@@ -155,7 +155,7 @@ class ChatQaService:
                 "user_id": user_id,
             }
 
-    def route_request(self, request: Any) -> Dict[str, Any]:
+    def route_request(self, request: Any, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Route an incoming chat request to the appropriate handler.
 
@@ -204,11 +204,6 @@ class ChatQaService:
                 request,
                 "diagram_mode",
                 request.get("diagram_mode") if isinstance(request, dict) else False,
-            )
-            user_id = getattr(
-                request,
-                "user_id",
-                request.get("user_id") if isinstance(request, dict) else None,
             )
             mentioned_definations = getattr(
                 request,
