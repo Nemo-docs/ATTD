@@ -148,8 +148,9 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
     if "project_context" in resolved_args:
         resolved_args["project_context"] = project_context
     if "scope" in resolved_args:
-        resolved_args["scope"] = resolved_args["scope"].replace("/", "\\")
+        resolved_args["scope"] = resolved_args["scope"]
         resolved_args["repo_symbols"] = repo_symbols
+        resolved_args["repo_hash"] = repo_hash
     try:
         tool_result = TOOL_MAPPING[tool_name](**resolved_args)
 
