@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DefinitionMentionDropdown } from '@/component/page_components/DefinitionMentionDropdown';
+import { X, Undo } from 'lucide-react';
 
-export type BlockType = 'h1' | 'h2' | 'h3' | 'text' | 'code';
+export type BlockType = 'h1' | 'h2' | 'h3' | 'text' | 'code' | 'command';
 
 interface SlashCommand {
   label: string;
@@ -35,6 +35,7 @@ interface SingleLineMarkdownBlockProps {
   content: string;
   type: BlockType;
   isFocused?: boolean;
+  isSelected?: boolean;
   onChange: (content: string) => void;
   onTypeChange: (type: BlockType) => void;
   onFocus?: () => void;
@@ -42,17 +43,24 @@ interface SingleLineMarkdownBlockProps {
   onNavigateUp?: () => void;
   onNavigateDown?: () => void;
   onEnter?: () => void;
+  onInsertAbove?: (type?: BlockType) => void;
   onBackspaceAtStart?: () => void;
   onOverflow?: (overflowText: string) => void;
   className?: string;
   repoId?: string;
   findMatches?: (query: string) => Definition[];
+  onCommandSubmit?: (value: string) => void;
+  commandState?: { loading: boolean; error: string | null; insertedCount?: number };
+  onClose?: () => void;
+  onPaste?: (e: React.ClipboardEvent) => void;
+  onUndo?: () => void;
 }
 
 export function SingleLineMarkdownBlock({
   content,
   type,
   isFocused = false,
+  isSelected = false,
   onChange,
   onTypeChange,
   onFocus,
@@ -60,11 +68,17 @@ export function SingleLineMarkdownBlock({
   onNavigateUp,
   onNavigateDown,
   onEnter,
+  onInsertAbove,
   onBackspaceAtStart,
   onOverflow,
   className,
   repoId,
   findMatches,
+  onCommandSubmit,
+  commandState,
+  onClose,
+  onPaste,
+  onUndo,
 }: SingleLineMarkdownBlockProps) {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
@@ -266,37 +280,39 @@ export function SingleLineMarkdownBlock({
       }
     }
 
-    // Check for slash command
-    const textBeforeCursor = value.substring(0, cursorPosition);
-    const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+    // Check for slash command only for non-command types
+    if (type !== 'command') {
+      const textBeforeCursor = value.substring(0, cursorPosition);
+      const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
 
-    if (lastSlashIndex !== -1) {
-      const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
-      const isAtStart = lastSlashIndex === 0;
+      if (lastSlashIndex !== -1) {
+        const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
+        const isAtStart = lastSlashIndex === 0;
 
-      if (isAtStart && !textAfterSlash.includes('\n') && !textAfterSlash.includes(' ')) {
-        // Show slash menu
-        const filtered = SLASH_COMMANDS.filter(cmd =>
-          cmd.label.toLowerCase().startsWith(textAfterSlash.toLowerCase()) ||
-          cmd.description.toLowerCase().includes(textAfterSlash.toLowerCase())
-        );
-        setFilteredCommands(filtered);
-        setSelectedCommandIndex(0);
-        setShowSlashMenu(true);
+        if (isAtStart && !textAfterSlash.includes('\n') && !textAfterSlash.includes(' ')) {
+          // Show slash menu
+          const filtered = SLASH_COMMANDS.filter(cmd =>
+            cmd.label.toLowerCase().startsWith(textAfterSlash.toLowerCase()) ||
+            cmd.description.toLowerCase().includes(textAfterSlash.toLowerCase())
+          );
+          setFilteredCommands(filtered);
+          setSelectedCommandIndex(0);
+          setShowSlashMenu(true);
 
-        // Calculate menu position
-        if (containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          setSlashMenuPosition({
-            top: rect.bottom + 4,
-            left: rect.left,
-          });
+          // Calculate menu position
+          if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setSlashMenuPosition({
+              top: rect.bottom + 4,
+              left: rect.left,
+            });
+          }
+        } else {
+          setShowSlashMenu(false);
         }
       } else {
         setShowSlashMenu(false);
       }
-    } else {
-      setShowSlashMenu(false);
     }
   };
 
@@ -380,6 +396,7 @@ export function SingleLineMarkdownBlock({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle mention dropdown keys first, for all types
     if (showMentionDropdown && matchedDefinitions.length > 0) {
       switch (e.key) {
         case 'ArrowDown':
@@ -410,7 +427,8 @@ export function SingleLineMarkdownBlock({
       return;
     }
 
-    if (showSlashMenu) {
+    // Handle slash menu keys only for non-command
+    if (type !== 'command' && showSlashMenu) {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
@@ -435,7 +453,32 @@ export function SingleLineMarkdownBlock({
       return;
     }
 
-    // Handle navigation and other keys
+    // Handle Ctrl+K only for non-command
+    if (type !== 'command' && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      onInsertAbove?.('command');
+      return;
+    }
+
+    // Handle command-specific keys
+    if (type === 'command') {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!commandState?.loading) {
+          onCommandSubmit?.(content);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+        setShowMentionDropdown(false);
+        setShowSlashMenu(false);
+        return;
+      }
+    }
+
+    // Handle navigation and other keys for all types
     const target = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
     switch (e.key) {
       case 'ArrowUp':
@@ -451,7 +494,7 @@ export function SingleLineMarkdownBlock({
         }
         break;
       case 'Enter':
-        if (!e.shiftKey) {
+        if (type !== 'command' && !e.shiftKey) {
           e.preventDefault();
           onEnter?.();
         }
@@ -481,6 +524,84 @@ export function SingleLineMarkdownBlock({
   };
 
   const renderInput = () => {
+    if (type === 'command') {
+      const isLoading = Boolean(commandState?.loading);
+      const matchedMentions = getMatchedMentions();
+      const highlightOverlay = createHighlightOverlay();
+      return (
+        <div className={cn("relative w-full max-w-xl rounded-xl", className)}>
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            className="absolute right-2 top-2 z-50 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close command block"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          {/* Highlight overlay for command */}
+          {matchedMentions.length > 0 && highlightOverlay && (
+            <>
+              <style dangerouslySetInnerHTML={{
+                __html: `
+                  .highlight-overlay-markdown mark {
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: none !important;
+                    display: inline !important;
+                    line-height: inherit !important;
+                    font-size: inherit !important;
+                    font-family: inherit !important;
+                    font-weight: inherit !important;
+                    background-color: rgba(59, 130, 246, 0.1) !important;
+                  }
+                `
+              }} />
+              <div 
+                ref={overlayRef}
+                className="highlight-overlay-markdown absolute inset-0 pointer-events-none font-mono text-[10px] overflow-hidden pl-2 pr-8 pt-2 pb-2 z-1"
+                style={{
+                  color: 'transparent',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  boxSizing: 'border-box',
+                  lineHeight: 'inherit'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: highlightOverlay
+                }}
+              />
+            </>
+          )}
+          <Textarea
+            ref={inputRef as any}
+            value={content}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onPaste={onPaste}
+            disabled={isLoading}
+            placeholder="Press Shift+Enter for newline"
+            className="min-h-[80px] w-full resize-none bg-transparent pr-8 pl-2 pt-2 pb-2 font-mono !text-[10px] leading-tight text-white focus-visible:ring-0 focus-visible:ring-offset-0 relative z-10"
+          />
+          {commandState?.insertedCount && commandState.insertedCount > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onUndo?.();
+              }}
+              className="absolute bottom-2 right-2 z-50 flex items-center justify-center w-6 h-6 rounded-full bg-background border hover:bg-accent transition-colors text-muted-foreground"
+              aria-label="Undo response"
+            >
+              <Undo className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      );
+    }
+
     // Base classes with markdown editor-style spacing
     const getBaseClasses = () => {
       if (type === 'code') {
@@ -528,6 +649,7 @@ export function SingleLineMarkdownBlock({
       onKeyDown: handleKeyDown,
       onFocus: handleFocus,
       onBlur: handleBlur,
+      onPaste,
       className: cn(getBaseClasses(), getFontClasses(), className),
     //   placeholder: type === 'code' ? 'Enter code...' : `Type '/' for commands or enter ${type}...`,
     };
@@ -642,6 +764,7 @@ export function SingleLineMarkdownBlock({
           {type === 'h3' && '###'}
           {type === 'code' && '</>'}
           {type === 'text' && 'T'}
+          {type === 'command' && '↗'}
         </div>
 
         {/* Input */}
@@ -663,7 +786,7 @@ export function SingleLineMarkdownBlock({
       {/* Slash Command Menu */}
       {showSlashMenu && filteredCommands.length > 0 && (
         <div
-          className="fixed z-50 bg-background border border-border rounded-md shadow-lg min-w-[250px]"
+          className="fixed z-50 bg-background border border-border rounded-md shadow-lg min-w-[250px] text-[10px] mt-2"
           style={{
             top: `${slashMenuPosition.top}px`,
             left: `${slashMenuPosition.left}px`,
@@ -679,8 +802,8 @@ export function SingleLineMarkdownBlock({
               )}
             >
               <div>
-                <div className="font-mono text-sm font-semibold">/{cmd.label}</div>
-                <div className="text-xs text-muted-foreground">{cmd.description}</div>
+                <div className="font-mono">/{cmd.label}</div>
+                {/* <div className="text-xs text-muted-foreground">{cmd.description}</div> */}
               </div>
             </div>
           ))}

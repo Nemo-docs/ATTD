@@ -1,10 +1,12 @@
-
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
+from app.modules.inline_qna.agents import InlineAgents
 from core.log_util import logger_instance
 from core.clients import open_router_client
+from app.modules.chat_qa.handle_basic_request import resolve_definations
 
+from app.modules.chat_qa.schema import MentionedDefinition
 
 class InlineQnaService:
     """
@@ -14,55 +16,60 @@ class InlineQnaService:
 
     def __init__(self):
         self.logger = logger_instance
-        self.max_tokens = 4000  # Reasonable limit for Q&A responses
 
     def answer_query(
-        self, text: str, cursor_position: dict, page_id: str
+        self, query: str, page_id: str, highlighted_text: Optional[List[str]], context: Optional[str], mentioned_definitions: Optional[List[MentionedDefinition]], repo_hash: str
     ) -> Dict[str, Any]:
         """
         Answer a user's query using the OpenRouter client.
 
         Args:
-            text: The user's query text
-            cursor_position: The position of the cursor in the text (x, y coordinates)
+            query: The user's query text
             page_id: The ID of the page where the query originated
-
+            highlighted_text: Text highlighted User while asking query
+            context: Context of the query
+            mentioned_definitions: Definitions mentioned in the query
+            repo_hash: The hash of the repository
         Returns:
             Dict containing the answer and metadata
         """
         try:
-            self.logger.info(f"Processing inline Q&A query: {text[:50]}...")
+            self.logger.info(f"Processing inline Q&A query: {query}")
 
+            # resolve definitions mentioned user's request
+            resolved_query = resolve_definations(query, mentioned_definitions, repo_hash) + "\n\n" + context
+            
             # Generate answer using OpenRouter
-            answer = self._generate_answer(text)
-
-            if answer.startswith("Error:"):
-                return {
-                    "error": answer,
-                    "text": text,
-                    "cursor_position": cursor_position,
-                    "page_id": page_id,
-                }
+            if highlighted_text:
+                resolved_context = resolved_query + "\n\n" + highlighted_text
+                answer = InlineAgents.answer_query(resolved_context=resolved_context, 
+                                                    highlighted_text=highlighted_text, 
+                                                    )
+            else:
+                resolved_context = resolved_query
+                answer = InlineAgents.answer_query(resolved_context=resolved_context)
 
             # Create response data
             response_data = {
-                "text": text,
-                "cursor_position": cursor_position,
+                "query": query,
                 "page_id": page_id,
+                "highlighted_text": highlighted_text,
+                "resolved_context": resolved_context,
                 "answer": answer,
-                "created_at": datetime.utcnow(),
             }
 
-            self.logger.info(f"Successfully generated answer for query: {text[:50]}...")
+            self.logger.info(f"Successfully generated answer for query: {query}")
             return response_data
 
         except Exception as e:
             self.logger.error(f"Error in answer_query: {str(e)}")
             return {
                 "error": str(e),
-                "text": text,
-                "cursor_position": cursor_position,
+                "query": query,
+                "highlighted_text": highlighted_text,
+                "resolved_context": resolved_context,
                 "page_id": page_id,
+                "repo_hash": repo_hash,
             }
 
     def _generate_answer(self, query: str) -> str:

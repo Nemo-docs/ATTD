@@ -161,6 +161,12 @@ export function SlidingSidebar() {
   
   return (
     <>
+      {/* Left edge hover area */}
+      <div
+        className="fixed left-0 top-0 z-50 h-full w-[50px]"
+        onMouseEnter={() => setIsOpen(true)}
+      />
+
       {/* Slide-out panel */}
       <div
         className={`fixed inset-y-0 left-0 z-60 w-[280px] transform overflow-hidden border-r border-[#2a2a2a] bg-[#191919] shadow-2xl transition-transform duration-300 ease-in-out ${
@@ -172,8 +178,8 @@ export function SlidingSidebar() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#2a2a2a] px-4 py-4">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-gray-600"></div>
-              <h2 className="font-mono text-[14px] font-medium text-gray-300">Book</h2>
+              {/* <div className="h-2 w-2 rounded-full bg-gray-600"></div> */}
+              <h2 className="font-mono text-[14px] font-medium text-gray-300">Nemo</h2>
             </div>
             <button
               onClick={() => setIsKeysModalOpen(true)}
@@ -248,11 +254,11 @@ export function SlidingSidebar() {
       <button
         // onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={() => setIsOpen(!isOpen)}
-        className={`fixed top-1/2 z-[70] flex h-30 w-[30px] -translate-y-1/2 items-center justify-center rounded-r-lg  bg-gray-500 text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-900 ${
+        className={`fixed top-1/2 z-[70] flex h-100 w-[20px] -translate-y-1/2 items-center justify-center rounded-r-lg  bg-gray-800  text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-900 ${
           isOpen ? "left-[280px]" : "left-0"
         }`}
         style={{
-          clipPath: "polygon(0 20%, 50px 0, 50px 100%, 0 80%)", transform: "rotate(180deg)"
+          clipPath: "polygon(0 10%, 50px 0, 50px 100%, 0 90%)", transform: "rotate(180deg)"
         }}
         aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
       >
