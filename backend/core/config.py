@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str
     MONGODB_URI: str
     DB_NAME: str
-    POSTGRES_CONNECTION: str
+    DATABASE_URL: str
     PARENT_DIR: str
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     LANGFUSE_BASE_URL: str
     LANGFUSE_PUBLIC_KEY: str
     CLERK_SECRET_KEY: str
+    UPSTASH_REDIS_REST_URL: str
+    UPSTASH_REDIS_REST_TOKEN: str
     IS_PRO_USER: str
     LOG_LEVEL: str
 

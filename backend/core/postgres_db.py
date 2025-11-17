@@ -14,9 +14,10 @@ class Base(DeclarativeBase):
 
 
 engine = create_async_engine(
-    settings.POSTGRES_CONNECTION,
+    settings.DATABASE_URL,
     pool_pre_ping=True,
     echo=False,
+    future=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -26,22 +27,20 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield an AsyncSession for DB operations."""
     async with AsyncSessionLocal() as session:
         yield session
+
+
+
+async def init_tables() -> None:
+    """Create the tables if they do not exist."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def verify_postgres_connection() -> None:
     """Verify the database connectivity by executing a simple statement."""
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1"))
-
-
-__all__ = [
-    "Base",
-    "engine",
-    "AsyncSessionLocal",
-    "get_async_session",
-    "verify_postgres_connection",
-]

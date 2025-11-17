@@ -1,14 +1,19 @@
 from fastapi import APIRouter, HTTPException, status, Request
 from typing import Any, Dict
+from uuid import UUID
 
 from core.log_util import logger_instance
 
-from app.modules.mcp_controller.services import MCPControllerService
+from app.modules.mcp_controller.services.cross_module import MCPControllerService
+
 
 # Create router
 router = APIRouter(prefix="/mcp", tags=["mcp-controller"])
 
+
 mcp_controller_service = MCPControllerService()
+
+
 
 @router.post("/create_page")
 async def create_page(payload: Dict[str, Any], req: Request) -> Dict[str, Any]:
@@ -167,3 +172,4 @@ async def get_snippet(snippet_id: str, req: Request) -> Dict[str, Any]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
         )
+
