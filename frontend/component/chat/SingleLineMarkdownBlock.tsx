@@ -93,6 +93,7 @@ export function SingleLineMarkdownBlock({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCheckingOverflow, setIsCheckingOverflow] = useState(false);
   const prevFocusedRef = useRef(false);
+  const prevLoadingRef = useRef<boolean>(false);
 
   // Sync overlay height with input/textarea height
   useEffect(() => {
@@ -127,6 +128,18 @@ export function SingleLineMarkdownBlock({
       prevFocusedRef.current = false;
     }
   }, [isFocused]); // Only depend on isFocused, not content.length
+
+  useEffect(() => {
+    if (type === 'command' && commandState && inputRef.current && isFocused) {
+      if (!commandState.loading && prevLoadingRef.current) {
+        // Refocus after loading completes
+        inputRef.current.focus();
+        const currentLength = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(currentLength, currentLength);
+      }
+      prevLoadingRef.current = commandState.loading;
+    }
+  }, [commandState?.loading, isFocused, type]);
 
   // Calculate exact overflow point using scrollWidth
   const calculateOverflowPoint = (element: HTMLElement): number => {
@@ -453,12 +466,6 @@ export function SingleLineMarkdownBlock({
       return;
     }
 
-    // Handle Ctrl+K only for non-command
-    if (type !== 'command' && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      onInsertAbove?.('command');
-      return;
-    }
 
     // Handle command-specific keys
     if (type === 'command') {
@@ -500,7 +507,9 @@ export function SingleLineMarkdownBlock({
         }
         break;
       case 'Backspace':
-        if (target.selectionStart === 0 && content === '') {
+        console.log('Backspace pressed', { target, content, type });
+        if (target.selectionStart === 0 && content === '' && type !== 'command') {
+          console.log('Backspace pressed', { target, content, type });
           e.preventDefault();
           onBackspaceAtStart?.();
         }
@@ -552,13 +561,12 @@ export function SingleLineMarkdownBlock({
                     font-size: inherit !important;
                     font-family: inherit !important;
                     font-weight: inherit !important;
-                    background-color: rgba(59, 130, 246, 0.1) !important;
                   }
                 `
               }} />
               <div 
                 ref={overlayRef}
-                className="highlight-overlay-markdown absolute inset-0 pointer-events-none font-mono text-[10px] overflow-hidden pl-2 pr-8 pt-2 pb-2 z-1"
+                className="highlight-overlay-markdown absolute inset-0 pointer-events-none font-mono text-sm overflow-hidden pl-2 pr-8 pt-2 pb-2 z-1"
                 style={{
                   color: 'transparent',
                   whiteSpace: 'pre-wrap',
@@ -582,7 +590,7 @@ export function SingleLineMarkdownBlock({
             onPaste={onPaste}
             disabled={isLoading}
             placeholder="Press Shift+Enter for newline"
-            className="min-h-[80px] w-full resize-none bg-transparent pr-8 pl-2 pt-2 pb-2 font-mono !text-[10px] leading-tight text-white focus-visible:ring-0 focus-visible:ring-offset-0 relative z-10"
+            className="min-h-[80px] w-full resize-none bg-transparent pr-8 pl-2 pt-2 pb-2 font-mono !text-sm leading-tight text-white focus-visible:ring-0 focus-visible:ring-offset-0 relative z-10"
           />
           {commandState?.insertedCount && commandState.insertedCount > 0 && (
             <button

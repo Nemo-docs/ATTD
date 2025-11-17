@@ -15,22 +15,23 @@ import { useBlockSelection } from '../../../../../hooks/pageHooks/useBlockSelect
 import { usePageMermaid } from '../../../../../hooks/pageHooks/usePageMermaid';
 import { parseContentToBlocks, blocksToContent, htmlToMarkdown } from '../../../../../component/editor/blockUtils';
 import { Block } from '../../../../../types/page-editor';
+import { useUndoRedo } from '../../../../../hooks/pageHooks/useUndoRedo';
+import { usePageData } from '../../../../../hooks/pageHooks/usePageData';
+import { useKeyboardShortcuts } from '../../../../../hooks/pageHooks/useKeyboardShortcuts';
+import { usePasteHandler } from '../../../../../hooks/pageHooks/usePasteHandler';
 
 export default function PageView() {
   const params = useParams();
   const pageId = params.pageId as string;
   const repoId = params.repoId as string;
   const { findMatches } = useDefinitions(repoId);
+  const { currentPage, loading, error, savePage } = usePageData(pageId);
 
   // Page state
-  const [currentPage, setCurrentPage] = useState<Page | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const [past, setPast] = useState<Block[][]>([]);
-  const [future, setFuture] = useState<Block[][]>([]);
+  // Extend pendingReplacement type implicitly with isInitial and commandBlockIndex
+  const [pendingReplacement, setPendingReplacement] = useState<{ insertIndex: number; selectedIndices: number[]; selectedContent: string; isInitial?: boolean; commandBlockIndex?: number; } | null>(null);
 
   // Custom hooks
   const {
@@ -64,10 +65,7 @@ export default function PageView() {
     resetCommandState,
   } = useCommandHandling();
 
-  const saveState = useCallback(() => {
-    setFuture([]);
-    setPast(prev => [...prev.slice(-19), blocks]);
-  }, [blocks]);
+  const { saveState, undo: performUndo, redo: performRedo } = useUndoRedo(blocks);
 
   const updateBlock = useCallback((index: number, updates: Partial<Block>) => {
     saveState();
@@ -99,29 +97,108 @@ export default function PageView() {
     originalInsertBlocksBelow(index, payloads);
   }, [saveState, originalInsertBlocksBelow]);
 
-  const undo = useCallback(() => {
-    if (past.length === 0) return;
-    const previousBlocks = past[past.length - 1];
-    const newPast = past.slice(0, -1);
-    setFuture(prev => [blocks, ...prev]);
-    setPast(newPast);
-    setBlocks(previousBlocks);
-    clearSelection();
-    setFocusedBlockIndex(0);
-    setHasUnsavedChanges(true);
-  }, [past, blocks, setPast, setFuture, setBlocks, clearSelection, setFocusedBlockIndex, setHasUnsavedChanges]);
+  const handleCommandResponse = useCallback((commandIndex: number, payloads: Array<{ type: BlockType; content: string }>) => {
+    console.log('handleCommandResponse called', { commandIndex, payloadsLength: payloads.length, hasPending: !!pendingReplacement });
+    if (payloads.length === 0) return;
 
-  const redo = useCallback(() => {
-    if (future.length === 0) return;
-    const nextBlocks = future[0];
-    const newFuture = future.slice(1);
-    setPast(prev => [...prev, blocks]);
-    setFuture(newFuture);
-    setBlocks(nextBlocks);
+    const newBlockEntries = payloads.map((payload) => ({
+      id: `block-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      ...payload,
+    }));
+
+    console.log('Created newBlockEntries', newBlockEntries.map(e => ({ id: e.id, type: e.type, contentPreview: e.content.substring(0, 50) + '...' })));
+
+    saveState();
+
+    setBlocks((prevBlocks) => {
+      let finalBlocks: Block[];
+      let tempBlocks: Block[] = [...prevBlocks];
+      let insertPos: number;
+
+      if (pendingReplacement) {
+        console.log('Processing with pendingReplacement', pendingReplacement);
+        const { insertIndex, selectedIndices, isInitial = false } = pendingReplacement;
+        const commandBlockIdx = pendingReplacement.commandBlockIndex || insertIndex;
+        const offset = isInitial ? 1 : 0;
+        let currentSelectedIndices = selectedIndices.map((i: number) => i + offset).sort((a, b) => b - a);
+
+        console.log('Computed currentSelectedIndices', currentSelectedIndices);
+
+        // Splice selected indices, skip if it's the command block
+        currentSelectedIndices.forEach((idx) => {
+          if (idx < tempBlocks.length && idx !== commandBlockIdx) {
+            tempBlocks.splice(idx, 1);
+          }
+        });
+
+        // Insert after command block
+        insertPos = commandBlockIdx + 1;
+        finalBlocks = [
+          ...tempBlocks.slice(0, insertPos),
+          ...newBlockEntries,
+          ...tempBlocks.slice(insertPos),
+        ];
+      } else {
+        console.log('No pending, inserting after command');
+        insertPos = commandIndex + 1;
+        finalBlocks = [
+          ...prevBlocks.slice(0, insertPos),
+          ...newBlockEntries,
+          ...prevBlocks.slice(insertPos),
+        ];
+      }
+
+      blocksRef.current = finalBlocks;
+      console.log('Final blocks length after insert/replace', finalBlocks.length);
+      return finalBlocks;
+    });
+
+    // Set new pendingReplacement for iterative query
+    if (payloads.length > 0) {
+      const newCommandBlockIndex = commandIndex;
+      const newInsertIndex = commandIndex + 1;
+      const newSelectedIndices = Array.from({ length: payloads.length }, (_, i) => newInsertIndex + i);
+      const newSelectedContent = payloads.map((p) => p.content).join('\n\n');
+
+      const newPending = {
+        insertIndex: newInsertIndex,
+        selectedIndices: newSelectedIndices,
+        selectedContent: newSelectedContent,
+        isInitial: false,
+        commandBlockIndex: newCommandBlockIndex,
+      };
+
+      setPendingReplacement(newPending);
+      console.log('Set new pendingReplacement for next iterative query', newPending);
+    } else {
+      setPendingReplacement(null);
+    }
+
+    // Keep focus on the command block
+    setFocusedBlockIndex(commandIndex);
     clearSelection();
-    setFocusedBlockIndex(0);
     setHasUnsavedChanges(true);
-  }, [future, blocks, setPast, setFuture, setBlocks, clearSelection, setFocusedBlockIndex, setHasUnsavedChanges]);
+  }, [saveState, blocksRef, setBlocks, setFocusedBlockIndex, clearSelection, setHasUnsavedChanges, pendingReplacement]);
+
+  const handleUndo = useCallback(() => {
+    const newBlocks = performUndo();
+    if (newBlocks) {
+      setBlocks(newBlocks);
+      clearSelection();
+      setFocusedBlockIndex(0);
+      setHasUnsavedChanges(true);
+    }
+  }, [performUndo, setBlocks, clearSelection, setFocusedBlockIndex, setHasUnsavedChanges]);
+
+  const handleRedo = useCallback(() => {
+    const newBlocks = performRedo();
+    if (newBlocks) {
+      setBlocks(newBlocks);
+      clearSelection();
+      setFocusedBlockIndex(0);
+      setHasUnsavedChanges(true);
+    }
+  }, [performRedo, setBlocks, clearSelection, setFocusedBlockIndex, setHasUnsavedChanges]);
 
   // New functionality for deleting multiple selected blocks
   const handleDeleteSelected = useCallback(() => {
@@ -138,32 +215,27 @@ export default function PageView() {
     clearSelection();
   }, [selectedBlockIndices, originalDeleteBlock, clearSelection, saveState]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedBlockIndices.length > 0) {
-        e.preventDefault();
-        handleDeleteSelected();
-      }
-    };
+  useKeyboardShortcuts({
+    selectedBlockIndices,
+    focusedBlockIndex,
+    blocks,
+    insertBlockAbove,
+    setPendingReplacement,
+    setSelectedBlockIndices,
+    setFocusedBlockIndex,
+    handleDeleteSelected,
+    handleUndo,
+    handleRedo
+  });
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBlockIndices.length, handleDeleteSelected]);
-
-  const handleUndoRedoKeyDown = (e: KeyboardEvent) => {
-    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
-      e.preventDefault();
-      undo();
-    } else if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
-      e.preventDefault();
-      redo();
-    }
-  };
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleUndoRedoKeyDown);
-    return () => document.removeEventListener('keydown', handleUndoRedoKeyDown);
-  }, [undo, redo]);
+  const { handlePaste: pasteHandler } = usePasteHandler({
+    blocks,
+    updateBlock,
+    setBlocks,
+    setFocusedBlockIndex,
+    setHasUnsavedChanges,
+    saveState
+  });
 
   // Initialize auto-save
   useAutoSave(currentPage, blocks, setHasUnsavedChanges);
@@ -171,13 +243,6 @@ export default function PageView() {
   // Initialize mermaid rendering
   usePageMermaid(blocks);
 
-  useEffect(() => {
-    if (pageId) {
-      loadPage(pageId);
-    }
-  }, [pageId]);
-
-  // Initialize blocks when page loads
   useEffect(() => {
     if (currentPage) {
       const parsedBlocks = parseContentToBlocks(currentPage.content);
@@ -191,22 +256,16 @@ export default function PageView() {
       setBlocks(newBlocks);
       setFocusedBlockIndex(0);
     }
-  }, [currentPage]);
+  }, [currentPage, setBlocks, setFocusedBlockIndex]);
 
-  const loadPage = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await pageApi.getPage(id);
-      setCurrentPage(response.page);
-    } catch (err) {
-      console.error('Failed to load page:', err);
-      setError('Failed to load page');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const hasCommandBlock = blocks.some(block => block.type === 'command');
+    if (!hasCommandBlock && pendingReplacement) {
+      console.log('No command blocks left, clearing pendingReplacement');
+      setPendingReplacement(null);
+      clearSelection();
     }
-  };
+  }, [blocks, pendingReplacement, setPendingReplacement, clearSelection]);
 
   const handleSave = async () => {
     if (!currentPage || blocks.length === 0) return;
@@ -214,88 +273,19 @@ export default function PageView() {
     try {
       setSaving(true);
       const content = blocksToContent(blocks);
-      // Get title from the first block
       const title = blocks[0]?.content || '';
 
-      const response = await pageApi.updatePage(currentPage.id, {
-        title,
-        content,
-      });
-
-      setCurrentPage(response.page);
-      setHasUnsavedChanges(false);
+      const updatedPage = await savePage(title, content);
+      if (updatedPage) {
+        setHasUnsavedChanges(false);
+      }
     } catch (err) {
-      console.error('Failed to save page:', err);
-      setError('Failed to save page');
+      // Error handled by hook
+      console.error('Save failed');
     } finally {
       setSaving(false);
     }
   };
-
-  const handlePaste = useCallback((e: React.ClipboardEvent, blockIndex: number) => {
-    const blockType = blocks[blockIndex]?.type;
-    if (blockType === 'code' || blockType === 'command') {
-      // Let default paste behavior occur for multi-line capable blocks
-      return;
-    }
-
-    e.preventDefault();
-
-    let pastedText = e.clipboardData.getData('text/plain');
-    const html = e.clipboardData.getData('text/html');
-
-    if (html) {
-      const md = htmlToMarkdown(html);
-      pastedText = md; // Use markdown version, which may include syntax for formatting
-    }
-
-    if (!pastedText) return;
-
-    const input = e.target as HTMLInputElement | HTMLTextAreaElement | null;
-    let cursorPos = 0;
-    let currentContent = '';
-    if (input) {
-      cursorPos = input.selectionStart || 0;
-      currentContent = input.value;
-    }
-
-    const before = currentContent.substring(0, cursorPos);
-    const after = currentContent.substring(cursorPos);
-
-    if (!pastedText.includes('\n')) {
-      // Single line paste: insert the (markdown) content at cursor position
-      const newContent = before + pastedText + after;
-      updateBlock(blockIndex, { content: newContent });
-      setHasUnsavedChanges(true);
-    } else {
-      // Multi-line paste: split current block and insert parsed blocks
-      saveState();
-
-      let newBlocks = [...blocks];
-      newBlocks[blockIndex] = { ...newBlocks[blockIndex], content: before };
-
-      const pastedBlocks = parseContentToBlocks(pastedText).map((block, idx) => ({
-        ...block,
-        id: `pasted-${blockIndex}-${Date.now()}-${idx}`
-      }));
-
-      newBlocks.splice(blockIndex + 1, 0, ...pastedBlocks);
-
-      if (after.trim()) {
-        const afterBlock: Block = {
-          id: `after-${blockIndex}-${Date.now()}`,
-          type: 'text',
-          content: after
-        };
-        newBlocks.splice(blockIndex + 1 + pastedBlocks.length, 0, afterBlock);
-      }
-
-      setBlocks(newBlocks);
-      setFocusedBlockIndex(blockIndex + 1);
-      setHasUnsavedChanges(true);
-    }
-  }, [blocks, updateBlock, setBlocks, setFocusedBlockIndex, setHasUnsavedChanges, parseContentToBlocks, htmlToMarkdown, saveState]);
-
 
   if (loading) {
     return (
@@ -346,18 +336,37 @@ export default function PageView() {
                   return spacing[type] || 'mb-0 mt-0';
                 };
 
+                // Compute shifted selected for highlighting
+                const shiftedSelected = pendingReplacement 
+                  ? (pendingReplacement.isInitial 
+                      ? pendingReplacement.selectedIndices.map((i: number) => i + 1)
+                      : pendingReplacement.selectedIndices
+                    ) 
+                  : [];
+                const commandBlockIdx = pendingReplacement?.commandBlockIndex;
+
                 return (
                   <div
                     key={block.id}
                     onMouseDown={(e) => handleBlockMouseDown(index, e)}
                     onMouseEnter={() => handleBlockMouseEnter(index)}
-                    className={selectedBlockIndices.includes(index) ? "bg-blue-10 dark:bg-blue-900/20 " : ""}
+                    className={
+                      (() => {
+                        if (pendingReplacement && shiftedSelected.includes(index) && index !== commandBlockIdx) {
+                          return "bg-orange-100 dark:bg-orange-900/20"; // Orange for command selection blocks only
+                        } else if (selectedBlockIndices.includes(index) && (!commandBlockIdx || index !== commandBlockIdx)) {
+                          return "bg-blue-100 dark:bg-blue-900/20"; // Blue for regular selection
+                        } else {
+                          return "";
+                        }
+                      })()
+                    }
                   >
                     <SingleLineMarkdownBlock
                       content={block.content}
                       type={block.type}
                       isFocused={focusedBlockIndex === index}
-                      isSelected={selectedBlockIndices.includes(index)}
+                      isSelected={selectedBlockIndices.includes(index) || (shiftedSelected.includes(index) && index !== commandBlockIdx)}
                       onChange={(content) => updateBlock(index, { content })}
                       onTypeChange={(type) => {
                         // Prevent changing title block type
@@ -366,7 +375,9 @@ export default function PageView() {
                       }}
                       onFocus={() => {
                         setFocusedBlockIndex(index);
-                        if (!selectedBlockIndices.includes(index)) {
+                        if (pendingReplacement && index === pendingReplacement.insertIndex) {
+                          // Keep existing selection for command block
+                        } else if (!selectedBlockIndices.includes(index)) {
                           setSelectedBlockIndices([index]);
                         }
                       }}
@@ -383,7 +394,9 @@ export default function PageView() {
                       onEnter={() => insertBlock(index)}
                       onInsertAbove={(type) => insertBlockAbove(index, type ?? 'text')}
                       onBackspaceAtStart={() => {
+                        console.log('onBackspaceAtStart called for block at index', index, 'type:', block.type, 'content length:', block.content.length);
                         if (index > 0) {
+                          console.log('Deleting block at index', index);
                           deleteBlock(index);
                         }
                         // Prevent deleting title block (index 0)
@@ -392,25 +405,28 @@ export default function PageView() {
                       className={getMarginClass(block.type)}
                       repoId={repoId}
                       findMatches={findMatches}
-                      onCommandSubmit={block.type === 'command' ? (value) => submitCommand(block.id, index, value, insertBlocksBelow) : undefined}
-                      commandState={block.type === 'command' ? commandStates[block.id] : undefined}
-                      onClose={block.type === 'command' ? () => deleteBlock(index) : undefined}
-                      onPaste={(e) => handlePaste(e, index)}
-                      onUndo={block.type === 'command' ? () => {
-                        const state = commandStates[block.id];
-                        if (state?.insertedCount && state.insertedCount > 0) {
-                          saveState();
-                          const count = state.insertedCount;
-                          const latestBlocks = blocksRef.current;
-                          const startDelete = index + 1;
-                          const endDelete = startDelete + count;
-                          const newBlocks = latestBlocks.slice(0, startDelete).concat(latestBlocks.slice(endDelete));
-                          setBlocks(newBlocks);
-                          setHasUnsavedChanges(true);
-                          setFocusedBlockIndex(index);
-                          clearSelection();
-                          resetCommandState(block.id);
+                      onCommandSubmit={block.type === 'command' ? (typedValue) => {
+                        console.log('onCommandSubmit', { blockId: block.id, index, typedValuePreview: typedValue.substring(0, 50) + '...' });
+                        let submitValue = typedValue;
+                        if (pendingReplacement && pendingReplacement.selectedContent) {
+                          submitValue = pendingReplacement.selectedContent + '\n\n' + typedValue;
+                          console.log('Prepended selected content to query');
                         }
+                        submitCommand(block.id, index, submitValue, handleCommandResponse);
+                      } : undefined}
+                      commandState={block.type === 'command' ? commandStates[block.id] ?? undefined : undefined}
+                      onClose={block.type === 'command' ? () => {
+                        console.log('onClose called for command block at index', index, 'blockId:', block.id);
+                        setPendingReplacement(null);
+                        clearSelection();
+                        deleteBlock(index);
+                      } : undefined}
+                      onPaste={(e) => pasteHandler(e, index)}
+                      onUndo={block.type === 'command' ? () => {
+                        console.log('onUndo called for command block at index', index);
+                        deleteBlock(index);
+                        setPendingReplacement(null);
+                        clearSelection();
                       } : undefined}
                     />
                   </div>

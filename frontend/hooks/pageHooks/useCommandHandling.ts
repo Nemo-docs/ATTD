@@ -4,6 +4,7 @@ import { BlockType } from '../../component/chat/SingleLineMarkdownBlock';
 
 export const useCommandHandling = () => {
   const [commandStates, setCommandStates] = useState<Record<string, CommandState>>({});
+  const [commandResponseBlocks, setCommandResponseBlocks] = useState<Record<string, number[]>>({});
 
   const registerCommandBlock = (blockId: string) => {
     setCommandStates(prev => ({
@@ -24,7 +25,8 @@ export const useCommandHandling = () => {
     blockId: string,
     index: number,
     text: string,
-    insertBlocksBelow: (index: number, payloads: Array<{ type: BlockType; content: string }>) => void
+    insertBlocksBelow: (index: number, payloads: Array<{ type: BlockType; content: string }>) => void,
+    blocks?: Array<{ id: string; type: BlockType; content: string }>
   ) => {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -41,7 +43,7 @@ export const useCommandHandling = () => {
     }));
 
     try {
-      const response = await fetch('https://mpeeeccdd1d98ee29f36.free.beeceptor.com', {
+      const response = await fetch('https://yojlkmm-l.free.beeceptor.com', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,8 +68,7 @@ export const useCommandHandling = () => {
         ...prev,
         [blockId]: { 
           loading: false, 
-          error: null, 
-          ...(lines.length > 0 && { insertedCount: lines.length })
+          error: null 
         },
       }));
     } catch (err) {
