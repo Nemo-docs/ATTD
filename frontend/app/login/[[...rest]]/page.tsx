@@ -81,7 +81,7 @@ export default function LoginPage() {
     <div 
       className="min-h-screen flex items-center justify-center px-4 py-12 text-white relative"
       style={{ 
-        backgroundImage: "url('/login_bg_screen.jpg')",
+        backgroundImage: "url('/login_4_bg_screen.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',

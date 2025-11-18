@@ -63,9 +63,9 @@ export default function PageView() {
     unregisterCommandBlock,
     handleCommandSubmit: submitCommand,
     resetCommandState,
-  } = useCommandHandling();
+  } = useCommandHandling(pageId, repoId, findMatches);
 
-  const { saveState, undo: performUndo, redo: performRedo } = useUndoRedo(blocks);
+  const { saveState, undo: performUndo, redo: performRedo, multiUndo } = useUndoRedo(blocks);
 
   const updateBlock = useCallback((index: number, updates: Partial<Block>) => {
     saveState();
@@ -353,7 +353,7 @@ export default function PageView() {
                     className={
                       (() => {
                         if (pendingReplacement && shiftedSelected.includes(index) && index !== commandBlockIdx) {
-                          return "bg-orange-100 dark:bg-orange-900/20"; // Orange for command selection blocks only
+                          return "bg-yellow-100 dark:bg-yellow-300/20"; // yellow for command selection blocks only
                         } else if (selectedBlockIndices.includes(index) && (!commandBlockIdx || index !== commandBlockIdx)) {
                           return "bg-blue-100 dark:bg-blue-900/20"; // Blue for regular selection
                         } else {
@@ -407,12 +407,9 @@ export default function PageView() {
                       findMatches={findMatches}
                       onCommandSubmit={block.type === 'command' ? (typedValue) => {
                         console.log('onCommandSubmit', { blockId: block.id, index, typedValuePreview: typedValue.substring(0, 50) + '...' });
-                        let submitValue = typedValue;
-                        if (pendingReplacement && pendingReplacement.selectedContent) {
-                          submitValue = pendingReplacement.selectedContent + '\n\n' + typedValue;
-                          console.log('Prepended selected content to query');
-                        }
-                        submitCommand(block.id, index, submitValue, handleCommandResponse);
+                        const userQuery = typedValue;
+                        const selectedContent = pendingReplacement?.selectedContent;
+                        submitCommand(block.id, index, userQuery, handleCommandResponse, blocks, selectedContent);
                       } : undefined}
                       commandState={block.type === 'command' ? commandStates[block.id] ?? undefined : undefined}
                       onClose={block.type === 'command' ? () => {
@@ -424,9 +421,16 @@ export default function PageView() {
                       onPaste={(e) => pasteHandler(e, index)}
                       onUndo={block.type === 'command' ? () => {
                         console.log('onUndo called for command block at index', index);
-                        deleteBlock(index);
+                        const count = commandStates[block.id]?.insertedCount || 0;
+                        const newBlocks = multiUndo(count + 1);
+                        if (newBlocks) {
+                          setBlocks(newBlocks);
+                          clearSelection();
+                          setFocusedBlockIndex(0);
+                          setHasUnsavedChanges(true);
+                        }
                         setPendingReplacement(null);
-                        clearSelection();
+                        deleteBlock(index);
                       } : undefined}
                     />
                   </div>

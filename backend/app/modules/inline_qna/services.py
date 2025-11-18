@@ -1,12 +1,15 @@
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import uuid
+import os
 
 from app.modules.inline_qna.agents import InlineAgents
+from app.modules.inline_qna.models import InlineQnaModel
 from core.log_util import logger_instance
-from core.clients import open_router_client
-from app.modules.chat_qa.handle_basic_request import resolve_definations
-
+from core.clients import open_router_client, mongodb_client
+from core.config import settings
 from app.modules.chat_qa.schema import MentionedDefinition
+from app.modules.chat_qa.handle_basic_request import resolve_definations
 
 class InlineQnaService:
     """
@@ -18,47 +21,57 @@ class InlineQnaService:
         self.logger = logger_instance
 
     def answer_query(
-        self, query: str, page_id: str, highlighted_text: Optional[List[str]], context: Optional[str], mentioned_definitions: Optional[List[MentionedDefinition]], repo_hash: str
+        self, user_id: str, query: str, page_id: str, mentioned_definitions: Optional[List[MentionedDefinition]], repo_hash: str
     ) -> Dict[str, Any]:
         """
         Answer a user's query using the OpenRouter client.
 
         Args:
+            user_id: The ID of the user
             query: The user's query text
             page_id: The ID of the page where the query originated
-            highlighted_text: Text highlighted User while asking query
-            context: Context of the query
             mentioned_definitions: Definitions mentioned in the query
             repo_hash: The hash of the repository
         Returns:
             Dict containing the answer and metadata
         """
+        resolved_query = query  # Initialize early
         try:
             self.logger.info(f"Processing inline Q&A query: {query}")
 
             # resolve definitions mentioned user's request
-            resolved_query = resolve_definations(query, mentioned_definitions, repo_hash) + "\n\n" + context
-            
+            if mentioned_definitions:
+                resolved_query = resolve_definations(query, mentioned_definitions, repo_hash) + "\n\n"
+
             # Generate answer using OpenRouter
-            if highlighted_text:
-                resolved_context = resolved_query + "\n\n" + highlighted_text
-                answer = InlineAgents.answer_query(resolved_context=resolved_context, 
-                                                    highlighted_text=highlighted_text, 
-                                                    )
-            else:
-                resolved_context = resolved_query
-                answer = InlineAgents.answer_query(resolved_context=resolved_context)
+            answer = InlineAgents.answer_query(resolved_query=resolved_query)
+
+            # Generate unique response ID
+            response_id = str(uuid.uuid4())
 
             # Create response data
+            created_at = datetime.utcnow()
             response_data = {
+                "id": response_id,
                 "query": query,
                 "page_id": page_id,
-                "highlighted_text": highlighted_text,
-                "resolved_context": resolved_context,
+                "resolved_query": resolved_query,
                 "answer": answer,
+                "created_at": created_at,
             }
 
             self.logger.info(f"Successfully generated answer for query: {query}")
+
+            # TODO: This is temporary, we need to save response to database
+            # save response to database
+            inline_qna_model = InlineQnaModel.from_request_data(
+                user_id=user_id,
+                query=query,
+                page_id=page_id,
+                resolved_query=resolved_query,
+                answer=answer
+            )
+            self.save_response_to_database(inline_qna_model)
             return response_data
 
         except Exception as e:
@@ -66,60 +79,20 @@ class InlineQnaService:
             return {
                 "error": str(e),
                 "query": query,
-                "highlighted_text": highlighted_text,
-                "resolved_context": resolved_context,
+                "resolved_query": resolved_query,
                 "page_id": page_id,
                 "repo_hash": repo_hash,
             }
 
-    def _generate_answer(self, query: str) -> str:
+    def save_response_to_database(self, inline_qna_model: InlineQnaModel) -> None:
         """
-        Generate an answer using the OpenRouter client.
-
-        Args:
-            query: The user's query
-
-        Returns:
-            Generated answer or error message
+        Save the response to the database.
         """
         try:
-            # Create a helpful prompt for the AI
-            system_prompt = """You are a helpful coding assistant that provides clear, concise answers to programming and technical questions.
-
-When answering:
-1. Be direct and practical
-2. Provide code examples when relevant
-3. Explain concepts clearly
-4. Focus on the specific question asked
-5. If the question is about code, suggest improvements or best practices
-6. Keep responses focused and actionable
-
-If you cannot provide a helpful answer, say so clearly rather than making up information."""
-
-            user_prompt = f"""Please answer the following question:
-
-{query}
-
-Provide a clear, helpful response focused on the specific question asked."""
-
-            # Call OpenRouter API
-            response = open_router_client.chat.completions.create(
-                model="openai/gpt-4o-mini",  # Using a capable model for Q&A
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=self.max_tokens,
-                temperature=0.3,  # Lower temperature for more focused answers
-            )
-
-            answer = response.choices[0].message.content.strip()
-
-            if not answer:
-                return "Error: No response generated from AI model"
-
-            return answer
-
+            db_name = settings.DB_NAME
+            coll = mongodb_client[db_name]["inline_qna"]
+            doc = inline_qna_model.dict()
+            # Let MongoDB set its own _id while storing our id
+            coll.insert_one(doc)
         except Exception as e:
-            self.logger.error(f"Error generating answer: {str(e)}")
-            return f"Error: Failed to generate answer - {str(e)}"
+            self.logger.error(f"Failed to save inline Q&A to DB: {e}")

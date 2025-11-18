@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from core.log_util import logger_instance
 from app.modules.inline_qna.services import InlineQnaService
 from app.modules.inline_qna.schema import (
     InlineQnaRequest,
     InlineQnaResponse,
 )
+from datetime import datetime
 
 # Create router
 router = APIRouter(prefix="/inline-qna", tags=["inline-qna"])
@@ -12,30 +13,31 @@ router = APIRouter(prefix="/inline-qna", tags=["inline-qna"])
 # Initialize service
 inline_qna_service = InlineQnaService()
 
+
 @router.post("/answer", response_model=InlineQnaResponse)
 async def answer_query(
     request: InlineQnaRequest,
+    req: Request,
 ) -> InlineQnaResponse:
     """
     Answer a user's inline query.
 
-    This endpoint processes a user's query text along with cursor position and page ID,
-    and returns an AI-generated answer using the OpenRouter client.
-
     Args:
-        request: The request containing text, cursor_position, and page_id
+        request: The request containing query, page_id, repo_hash, and mentioned_definitions
 
     Returns:
-        Response containing the original query data and the generated answer
+        Response containing the query, page_id, generated answer, and creation timestamp
     """
     try:
         logger_instance.info(f"Received inline Q&A request for page: {request.page_id}")
-        logger_instance.info(f"Request: {request.cursor_position}")
+        logger_instance.info(f"Query: {request.query}")
         # Generate answer using the service
         result = inline_qna_service.answer_query(
-            text=request.text,
-            cursor_position=request.cursor_position,
+            user_id=req.state.user_id,
+            query=request.query,
             page_id=request.page_id,
+            mentioned_definitions=request.mentioned_definitions,
+            repo_hash=request.repo_hash,
         )
 
         # Check if there was an error during generation
@@ -48,11 +50,10 @@ async def answer_query(
 
         # Convert to response model
         response = InlineQnaResponse(
-            text=result["text"],
-            cursor_position=result["cursor_position"],
+            query=result["query"],
             page_id=result["page_id"],
             answer=result["answer"],
-            created_at=result["created_at"],
+            created_at=datetime.now(),
         )
 
         logger_instance.info(f"Successfully generated answer for page: {request.page_id}")

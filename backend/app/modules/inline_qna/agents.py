@@ -1,6 +1,7 @@
 from typing import List, Optional
 from core.log_util import logger_instance
 from core.clients import open_router_client
+from app.modules.inline_qna.prompts import system_prompt, highlight_user_prompt, non_highlight_user_prompt
 
 class InlineAgents:
     def __init__(self):
@@ -8,17 +9,33 @@ class InlineAgents:
         self.open_router_client = open_router_client
 
     @classmethod
-    def answer_query(cls, resolved_context: str, highlighted_text: Optional[List[str]]) -> str:
+    def answer_query(cls, resolved_query: str) -> str:
         """
         Answer a user's query using the OpenRouter client.
         """
         try:
-            cls.logger.info(f"Answering query: {resolved_context}")
-            cls.logger.info(f"Highlighted Text: {highlighted_text}")
-            # Generate answer using OpenRouter
-            # answer = cls.generate_answer(query, page_id, highlighted_text, resolved_context, repo_hash)
-            answer = "Answer to the query"
-            return answer
+            if "<highlighted_command_block_selection_blocks>" in resolved_query:
+                msgs = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": highlight_user_prompt(resolved_query)},
+                ]
+                resp = open_router_client.chat.completions.create(
+                    model="openai/gpt-5-mini",
+                    messages=msgs,
+                )
+                answer = resp.choices[0].message.content.strip()
+                return answer
+            else:
+                msgs = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": non_highlight_user_prompt(resolved_query)},
+                ]
+                resp = open_router_client.chat.completions.create(
+                    model="openai/gpt-5-mini",
+                    messages=msgs,
+                )
+                answer = resp.choices[0].message.content.strip()
+                return answer
         except Exception as e:
-            cls.logger.error(f"Error answering query: {e}")
+            logger_instance.error(f"Error answering query: {e}")
             raise e
