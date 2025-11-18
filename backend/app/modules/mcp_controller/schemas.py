@@ -1,2 +1,5 @@
 from pydantic import BaseModel
-from uuid import UUID
+
+
+class EchoPayload(BaseModel):
+    text: str
