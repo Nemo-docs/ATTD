@@ -16,10 +16,8 @@ class Settings(BaseSettings):
     )
 
     BACKEND_BASE_URL: str
-    FRONTEND_BASE_URL: str
-    CLERK_SECRET_KEY: str
-    PORT: int
     LOG_LEVEL: str
+    PORT: int
     
 
 try:

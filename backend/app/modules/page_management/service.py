@@ -133,7 +133,7 @@ class PageManagementService:
             self.logger.error(f"Error retrieving all pages: {str(e)}")
             return {"error": str(e)}
 
-    def get_all_page_titles(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_all_page_descriptions(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Retrieve all page titles for the authenticated user.
 
@@ -141,7 +141,7 @@ class PageManagementService:
             user_id: The user identifier
 
         Returns:
-            Dict containing list of page titles and total count
+            List of page titles and page id dict
         """
         try:
             if not user_id:
@@ -152,11 +152,11 @@ class PageManagementService:
             # Get all page titles from database
             page_titles = self._get_all_page_titles(user_id=user_id)
 
-            return {"page_titles": page_titles, "total_count": len(page_titles)}
+            return page_titles
 
         except Exception as e:
             self.logger.error(f"Error retrieving all page titles: {str(e)}")
-            return {"error": str(e)}
+            raise
 
 
     def update_page(
@@ -423,7 +423,7 @@ class PageManagementService:
             self.logger.error(f"Error deleting page from database: {e}")
             raise e
 
-    def _get_all_page_titles(self, user_id: str) -> List[str]:
+    def _get_all_page_titles(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Retrieve all page titles for the authenticated user.
 
@@ -435,8 +435,11 @@ class PageManagementService:
         """
         try:
             query = {"user_id": user_id}
-            cursor = self.collection.find(query)
-            page_titles = [page["title"] for page in cursor]
+            projection = {"_id": 0, "id": 1, "title": 1}
+
+            cursor = self.collection.find(query, projection)
+            page_titles = [doc for doc in cursor]
+
             return page_titles
         except PyMongoError as e:
             self.logger.error(f"Error retrieving page titles from database: {e}")
