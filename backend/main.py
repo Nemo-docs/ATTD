@@ -12,18 +12,28 @@ from app.modules.chat_qa.routes import router as chat_qa_router
 from app.modules.git_repo_setup import routes as git_repo_routes
 from app.modules.user_module.routes import router as user_router
 from app.modules.snippet_management.routes import router as snippet_router
+from app.modules.mcp_controller.routes import router as mcp_controller_router
+from app.modules.api_keys.routes import router as api_keys_router
+
 # no direct datetime usage in this module
 from contextlib import asynccontextmanager
 
 # Load environment variables
 from core.config import settings
  
+# Database
+from core.postgres_db import engine, init_tables, verify_postgres_connection
+from core.clients import mongodb_client, redis_client
+
  # Import custom logger
 from core.log_util import logger_instance 
-logger_instance.info("logging initialized")
 
 # Import middleware
 from core.middleware import auth_middleware
+
+
+
+logger_instance.info("logging initialized")
 
 
 
@@ -32,17 +42,38 @@ async def lifespan(app: FastAPI):
     """Handle application startup and shutdown events."""
     # Startup
     try:
-        from core.clients import mongodb_client
-
         # Ping the database to verify connection
         mongodb_client.admin.command("ping")
-        logger_instance.info("Database connection validated successfully")
+        logger_instance.info("MongoDB connection validated successfully")
+
+        # Postgres init and connectivity check
+        await init_tables()
+        await verify_postgres_connection()
+        logger_instance.info("Postgres connection validated successfully")
+
+        # Redis initialization and health check
+        app.state.redis = redis_client
+        await app.state.redis.set("startup_check", "ok")
+        assert await app.state.redis.get("startup_check") == "ok"
+        logger_instance.info("Redis connection validated successfully")
+
+        yield
+
     except Exception as e:
         logger_instance.error(f"Database connection failed: {e}")
-    yield
+        raise
 
-    # Shutdown
-    logger_instance.info("Shutting down ATTD Backend")
+    finally:
+        # Cleanup
+        # Cleaning up redis
+        if hasattr(app.state, "redis"):
+            await app.state.redis.aclose()
+
+        # Cleaning up postgres
+        await engine.dispose()  
+
+        logger_instance.info("Shutting down ATTD Backend")
+
 
 
 # Create FastAPI app with lifespan
@@ -90,6 +121,11 @@ app.include_router(git_repo_routes.router, prefix="/api", tags=["git-repo-setup"
 # Include user routes
 app.include_router(user_router, prefix="/api")
 
+# Include API keys routes
+app.include_router(api_keys_router, prefix="/api", tags=["api-keys"])
+
+# Include MCP controller routes
+app.include_router(mcp_controller_router, prefix="/api", tags=["mcp-controller"])
 
 
 # Define basic routes

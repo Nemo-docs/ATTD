@@ -1,6 +1,6 @@
-from typing import Optional, Dict, Any
-from utils.logging import logger
-from utils.backend_client import call_backend
+from typing import Optional, Dict, List, Any 
+from core.logger import logger
+from core.clients import call_backend
 from fastmcp import Context
 
 
@@ -9,7 +9,7 @@ async def create_page(ctx: Context, title: str, content: Optional[str] = None) -
     Create a new page with the provided title and optional content for a specific user.
 
     Endpoint:
-        POST /pages/create
+        POST /create_page
 
     Request Body (JSON):
         - title (str): Required. The page title.
@@ -31,48 +31,43 @@ async def create_page(ctx: Context, title: str, content: Optional[str] = None) -
         - Network/transport failures may be described as errors.
 
     Parameters:
-        user_id: Unique identifier of the user who owns the page.
         title: Title of the new page.
         content: Optional content for the page.
 
     Returns:
         A dictionary parsed from the backend JSON response containing the created page and a message.
     """
-
-    user_id = ctx.get_state("user_id")
-    payload: Dict[str] = {"user_id": user_id, "title": title, "content": content}
-    
-    logger.info(f"Creating page for user: {user_id} with title: {title} and content: {content}")
-    response = await call_backend(ctx, "/pages/create", "POST", payload)
+    payload: Dict[str, Any] = {"title": title, "content": content if content is not None else ""}
+    endpoint = "/create_page"
+    logger.info(f"Creating page with title: {title} and content: {content}")
+    response = await call_backend(ctx, endpoint, "POST", payload)
     return response
 
 
-async def get_all_pages(ctx: Context) -> Dict[str, Any]:
+async def get_all_page_descriptions(ctx: Context) -> List[Dict[str, Any]]:
     """
     Retrieve all pages visible to the specified user.
 
     Endpoint:
-        GET /pages/
+        GET /get_all_page_descriptions
 
     Response (JSON):
-        - pages (list[Dict]): A list of page objects.
-        - total_count (int): Total number of pages returned.
+        - list[Dict]: A list of page objects. each page contains id and title
+            - id (str): The unique identifier of the page.
+            - title (str): The title of the page.
 
     Behavior:
         - Makes a request to retrieve all pages visible to the specified user and returns its status as a JSON result.
         - Non-2xx responses will describe the error.
         - Network/transport failures may be described as errors.
 
-    Parameters:
-        user_id: Unique identifier of the user for whom pages are requested.
-
     Returns:
-        A dictionary containing "pages" and "total_count" keys parsed from the backend JSON response.
+        List of page descriptions and corresponding page id if successful, 500 if error
     """
-    user_id = ctx.get_state("user_id")
-    endpoint = f"/pages/?user_id={user_id}"
-    logger.info(f"Retrieving all pages for user: {user_id}")
-    return await call_backend(ctx, endpoint, "GET")
+    endpoint = "/get_all_page_descriptions"
+    logger.info("Retrieving all page descriptions")
+    response = await call_backend(ctx, endpoint, "GET")
+    return response
 
 
 async def get_page_by_id(ctx: Context, page_id: str) -> Dict[str, Any]:
@@ -80,7 +75,7 @@ async def get_page_by_id(ctx: Context, page_id: str) -> Dict[str, Any]:
     Retrieve a single page by its ID for the specified user.
 
     Endpoint:
-        GET /pages/{page_id}
+        GET /get_page/{page_id}
 
     Path Parameters:
         - page_id (str): Required. The unique identifier of the page to retrieve.
@@ -101,13 +96,29 @@ async def get_page_by_id(ctx: Context, page_id: str) -> Dict[str, Any]:
 
     Parameters:
         page_id: The unique page identifier.
-        user_id: The unique user identifier used for access scoping.
 
     Returns:
         A dictionary parsed from the backend JSON response containing the requested page.
     """
 
-    user_id = ctx.get_state("user_id")
-    endpoint = f"/pages/{page_id}?user_id={user_id}"
-    logger.info(f"Retrieving page by ID: {page_id} for user: {user_id}")
-    return await call_backend(ctx, endpoint, "GET")
+    endpoint = f"/get_page/{page_id}"
+    logger.info(f"Retrieving page by ID: {page_id}")
+    response = await call_backend(ctx, endpoint, "GET")
+    return response
+ 
+
+async def get_all_snippets(ctx: Context) -> List[Dict[str, Any]]:
+    """
+    Retrieve all snippets for the authenticated user.
+
+    Endpoint:
+        GET /get_all_snippets
+
+    Returns:
+        List of snippet objects
+    """
+    endpoint = "/get_all_snippets"
+    logger.info("Retrieving all snippets")
+    response = await call_backend(ctx, endpoint, "GET")
+    return response
+

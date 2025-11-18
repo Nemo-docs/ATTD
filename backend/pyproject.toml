@@ -20,6 +20,10 @@ dependencies = [
     "tree-sitter-python>=0.23.6",
     "pydantic>=2.12.3",
     "pydantic-settings>=2.11.0",
+    "sqlalchemy[asyncio]>=2.0.44",
+    "asyncpg>=0.30.0",
+    "argon2-cffi>=25.1.0",
+    "redis>=7.0.1",
 ]
 
 [dependency-groups]

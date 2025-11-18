@@ -1,15 +1,12 @@
 import httpx
-from utils.config import ENV
-
-
+from core.config import settings
 
 
 async def call_backend(ctx, endpoint: str, method: str , data: dict | None = None):
     
-    url = f"{ENV.BACKEND_BASE_URL}/api{endpoint}"
-    headers = {"Authorization": f"Bearer {ctx.get_state('bearer_token')}"}
-    
-    
+    url = f"{settings.BACKEND_BASE_URL}/api/mcp{endpoint}"
+    headers =  {"X-Api-Key": f"{ctx.get_state('api_key')}"}
+        
     # Make the request
     async with httpx.AsyncClient() as client:
         response = await client.request(method, url, json=data, headers=headers)

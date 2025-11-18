@@ -4,6 +4,7 @@ from core.clients import clerk_client
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from clerk_backend_api.security.types import AuthenticateRequestOptions
+from utils.auth_redis import get_key_context
 
 # Define public paths that bypass authentication
 PUBLIC_PREFIXES = ("/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
@@ -17,9 +18,27 @@ async def auth_middleware(request: Request, call_next):
     if any(request.url.path.startswith(p) for p in PUBLIC_PREFIXES):
         return await call_next(request)
 
+    # Allow CORS preflight requests
     if request.method == "OPTIONS":
         return await call_next(request)
     
+
+    # API key auth for MCP endpoints
+    if request.url.path.startswith("/api/mcp"):
+        raw_key = request.headers.get("X-Api-Key") or request.headers.get("x-api-key")
+        if not raw_key:
+            return JSONResponse(
+                {"error": "Missing API key"},
+                status_code=401
+            )
+        
+        user_id_res = await get_key_context(raw_key)
+        if isinstance(user_id_res, JSONResponse):
+            return user_id_res
+        
+        request.state.user_id = user_id_res
+        return await call_next(request)
+
     # Authenticate request via Clerk
     hx_req = httpx.Request(
         method=request.method,

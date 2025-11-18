@@ -1,6 +1,6 @@
 import sys
 import logging
-from utils.config import ENV
+from core.config import settings
 
 
 # Define log levels
@@ -11,7 +11,7 @@ ERROR = logging.ERROR
 
 def setup_logger(
     name: str = "mcp",
-    level: int = ENV.LOG_LEVEL,
+    level: int = settings.LOG_LEVEL,
 ) -> logging.Logger:
     """
     Set up and return a logger with the specified configuration.
