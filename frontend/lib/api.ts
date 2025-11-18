@@ -267,6 +267,48 @@ export const userApi = {
   },
 };
 
+// API Key types
+export interface APIKeyCreateRequest {
+  name: string;
+  description?: string;
+}
+
+export interface APIKeyPlaintextResponse {
+  api_key: string;
+}
+
+export interface APIKeySummary {
+  key_prefix: string;
+  name: string;
+  description?: string;
+}
+
+export interface APIKeyRevokeResponse {
+  revoked: boolean;
+}
+
+export const keyApi = {
+  // Create a new API key
+  createKey: async (data: APIKeyCreateRequest): Promise<APIKeyPlaintextResponse> => {
+    return apiRequest('/keys/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // List all active API keys
+  listKeys: async (): Promise<APIKeySummary[]> => {
+    return apiRequest('/keys/list');
+  },
+
+  // Revoke an API key
+  revokeKey: async (keyPrefix: string): Promise<APIKeyRevokeResponse> => {
+    return apiRequest(`/keys/revoke/${keyPrefix}`, {
+      method: 'PUT',
+    });
+  },
+};
+
 const mermaidValidationResponseSchema = z.object({
   isValid: z.boolean(),
   error: z.string().optional(),

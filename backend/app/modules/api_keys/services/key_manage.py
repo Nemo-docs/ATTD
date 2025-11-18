@@ -3,7 +3,7 @@ from sqlalchemy.exc import NoResultFound
 
 
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.postgres_db import AsyncSessionLocal
 from core.log_util import logger_instance
@@ -25,15 +25,16 @@ class KeyManageService:
 
     async def create_api_key(self, user_id: str, name: str, description: str | None,
     ) -> str:
-        plaintext = self.key_util.generate_API_key()  
-        hashed = self.key_util.hash_API_key(plaintext)
+        plain_key_data = self.key_util.generate_API_key()  
+        hashed = str(self.key_util.argon_hash_API_key(plain_key_data["key"]))
 
-        expires_at = datetime.now(datetime.timezone.utc) + timedelta(days=self.ttl_days)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=self.ttl_days)
 
         async with AsyncSessionLocal() as session:
             async with session.begin():
                 api_key = APIKey(
                     user_id=user_id,
+                    key_prefix=plain_key_data["prefix"],
                     key_hash=hashed,
                     scopes=self.scopes,
                     status="active",
@@ -48,15 +49,15 @@ class KeyManageService:
                 await session.refresh(api_key)
 
             # return plaintext once, never store it
-            return plaintext
+            return plain_key_data["key"]
 
 
-    async def revoke_api_key(self, api_key_id: UUID, user_id: str) -> bool:
+    async def revoke_api_key(self, key_prefix: str, user_id: str) -> bool:
         async with AsyncSessionLocal() as session:
             async with session.begin():
                 stmt = (
                     update(APIKey)
-                    .where(APIKey.id == api_key_id, APIKey.user_id == user_id)
+                    .where(APIKey.key_prefix == key_prefix, APIKey.user_id == user_id)
                     .values(status="revoked")
                     .execution_options(synchronize_session=False)
                 )
@@ -67,7 +68,7 @@ class KeyManageService:
     async def get_all_active_keys(self, user_id: str) -> list[dict]:
         async with AsyncSessionLocal() as session:
             async with session.begin():
-                stmt = select(APIKey.id, APIKey.name, APIKey.description).where(APIKey.user_id == user_id, APIKey.status=="active")
+                stmt = select(APIKey.key_prefix, APIKey.name, APIKey.description).where(APIKey.user_id == user_id, APIKey.status=="active")
                 res = await session.execute(stmt)
                 return res.mappings().all() 
                

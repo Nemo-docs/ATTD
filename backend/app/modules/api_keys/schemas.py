@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from uuid import UUID
 
 
 class APIKeyCreateRequest(BaseModel):
@@ -13,7 +12,7 @@ class APIKeyRevokeResponse(BaseModel):
     revoked: bool
 
 class APIKeySummaryResponse(BaseModel):
-    id: UUID
+    key_prefix: str
     name: str
     description: str | None = None
 

@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from sqlalchemy import Integer, BigInteger, String, Date, DateTime, Column, Enum, ARRAY, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID, BYTEA
+from sqlalchemy.dialects.postgresql import UUID
 
 from core.postgres_db import Base
 
@@ -13,7 +13,8 @@ class APIKey(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id = Column(String, nullable=False)  # Clerk user ID
-    key_hash = Column(BYTEA, nullable=False, unique=True, index=True)
+    key_prefix = Column(String, nullable=False, unique=True, index=True)
+    key_hash = Column(String, nullable=False)
 
     scopes = Column(ARRAY(String), nullable=False, default=list)
 

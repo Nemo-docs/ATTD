@@ -32,8 +32,7 @@ async def auth_middleware(request: Request, call_next):
                 detail="Missing API key",
             )
         
-        ctx = await get_key_context(raw_key)
-        request.state.user_id = ctx.get("user_id")
+        request.state.user_id = await get_key_context(raw_key)
         return await call_next(request)
 
     # Authenticate request via Clerk

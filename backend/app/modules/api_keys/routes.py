@@ -27,13 +27,13 @@ async def create_api_key_endpoint(payload: APIKeyCreateRequest, req: Request):
     logger_instance.info(f"Created API key {api_key} for user {user_id}")
     return APIKeyPlaintextResponse(api_key=api_key)
 
-@router.put("/revoke/{api_key_id}", response_model=APIKeyRevokeResponse)
-async def revoke_api_key_endpoint(api_key_id: UUID, req: Request):
+@router.put("/revoke/{key_prefix}", response_model=APIKeyRevokeResponse)
+async def revoke_api_key_endpoint(key_prefix: str, req: Request):
     user_id = req.state.user_id
-    revoked = await key_manage_service.revoke_api_key(api_key_id=api_key_id, user_id=user_id)
+    revoked = await key_manage_service.revoke_api_key(key_prefix=key_prefix, user_id=user_id)
     if not revoked:
         raise HTTPException(status_code=404, detail="API key not found")
-    logger_instance.info(f"Revoked API key {api_key_id} for user {user_id}")
+    logger_instance.info(f"Revoked API key {key_prefix} for user {user_id}")
     return APIKeyRevokeResponse(revoked=True)
 
 @router.get("/list", response_model=list[APIKeySummaryResponse])
