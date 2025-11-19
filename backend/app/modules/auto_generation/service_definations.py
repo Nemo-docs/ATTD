@@ -26,10 +26,9 @@ class ParseDefinitionsService:
         self.db = mongodb_client[self.db_name]
         self.collection: Collection = self.db["definitions"]
 
-    def parse_definitions(self, repo_hash: str):
+    def parse_definitions(self, repo_hash: str, github_url: str):
         try:
             definitions_repo: List[Definition] = []
-            github_url = self.auto_generation.get_project_intro_by_hash(repo_hash=repo_hash).get("github_url")
             
             # get random id, so that files dont get deleted because of other cause
             random_id = str(uuid.uuid4())

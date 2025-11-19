@@ -36,6 +36,10 @@ class Logger:
     def info(self, message: str, *args, **kwargs):
         """Log an INFO level message."""
         self._logger.info(message, *args, **kwargs)
+
+    def warning(self, message: str, *args, **kwargs):
+        """Log a WARNING level message."""
+        self._logger.warning(message, *args, **kwargs)
     
     def error(self, message: str, *args, **kwargs):
         """Log an ERROR level message."""

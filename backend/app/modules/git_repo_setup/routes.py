@@ -18,7 +18,10 @@ async def create_git_repo(payload: CreateGitRepoRequest):
     try:
         logger_instance.info(f"Creating git repo for URL: {payload.github_url}")
         result = git_repo_setup_service.clone_repo_to_disk(str(payload.github_url))
-        logger_instance.info(f"Result: {result}")
+        logger_instance.info(f"Cloned repo to disk: {result}")
+        # parsing and saving new definitions to db
+        result = git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
+        logger_instance.info(f"Parsed and saved definitions to db: {result}")
         if "error" in result:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -59,6 +62,8 @@ async def update_git_repo(payload: CreateGitRepoRequest):
         logger_instance.info(f"Updating git repo for URL: {payload.github_url}")
         
         result = git_repo_setup_service.update_repo_by_url(str(payload.github_url))
+        # parsing and saving new definitions to db
+        git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
         
         logger_instance.info(f"{result}")
         return result

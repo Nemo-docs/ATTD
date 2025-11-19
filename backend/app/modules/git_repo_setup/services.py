@@ -2,6 +2,7 @@ import hashlib
 import os
 import subprocess
 import threading
+from app.modules.auto_generation.service_definations import ParseDefinitionsService
 from core.config import settings
 from core.log_util import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
@@ -145,3 +146,16 @@ class GitRepoSetupService:
         
         self.logger.info(f"Started background intro generation for hash: {repo_hash}")
         return {"up_to_date": False}
+
+    def parse_and_save_definitions(self, repo_url: str):
+        """
+        Parse and save definitions to db.
+        """
+        try:
+            repo_hash = self._generate_repo_hash(repo_url)
+            parse_definitions = ParseDefinitionsService()
+            parse_definitions.parse_definitions(repo_hash=repo_hash, github_url=repo_url)
+            return {"success": True}
+        except Exception as e:
+            self.logger.error(f"Error in parse_and_save_definitions: {str(e)}")
+            return {"error": str(e)}
