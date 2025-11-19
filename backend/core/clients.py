@@ -12,7 +12,7 @@ open_router_client = openai.OpenAI(
     api_key=settings.OPENROUTER_API_KEY,
 )
 
-# Initiallize MongoDB Client 
+# Initiallize MongoDB Client
 mongodb_client = MongoClient(settings.MONGODB_URI, server_api=ServerApi("1"))
 
 
@@ -21,4 +21,8 @@ clerk_client = Clerk(bearer_auth=settings.CLERK_SECRET_KEY)
 
 
 # Initialize Redis Client
-redis_client = aioredis.Redis.from_url(url=settings.REDIS_URL, decode_responses=True)
+redis_client = aioredis.Redis.from_url(
+    url=settings.UPSTASH_REDIS_REST_URL,
+    password=settings.UPSTASH_REDIS_REST_TOKEN,
+    decode_responses=True,
+)
