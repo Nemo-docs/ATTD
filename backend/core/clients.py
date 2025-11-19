@@ -21,4 +21,4 @@ clerk_client = Clerk(bearer_auth=settings.CLERK_SECRET_KEY)
 
 
 # Initialize Redis Client
-redis_client = aioredis.Redis.from_url(url=settings.UPSTASH_REDIS_REST_URL, password=settings.UPSTASH_REDIS_REST_TOKEN, decode_responses=True)
+redis_client = aioredis.Redis.from_url(url=settings.REDIS_URL, decode_responses=True)

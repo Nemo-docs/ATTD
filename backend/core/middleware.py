@@ -38,6 +38,27 @@ async def auth_middleware(request: Request, call_next):
         
         request.state.user_id = user_id_res
         return await call_next(request)
+    
+    # API auth for notepad requests
+    if request.url.path.startswith("/api/snippets") and request.headers.get("x-Api-Key"):
+        try:
+            raw_key = request.headers.get("x-Api-Key")
+            user_id_res = await get_key_context(raw_key)
+            if isinstance(user_id_res, JSONResponse):
+                return user_id_res
+            
+            if user_id_res:
+                request.state.user_id = user_id_res
+                return await call_next(request)
+        except Exception as e:
+            return JSONResponse(
+                {"error": "Invalid API key"},
+                status_code=401
+            )
+        return JSONResponse(
+                {"error": "Invalid API key"},
+                status_code=401
+            )        
 
     # Authenticate request via Clerk
     hx_req = httpx.Request(
@@ -47,8 +68,8 @@ async def auth_middleware(request: Request, call_next):
     )
 
     auth_parties = [settings.FRONTEND_BASE_URL]
-    if "/api/snippets" in request.url.path:
-        auth_parties.append("*")
+    # if "/api/snippets" in request.url.path:
+    #     auth_parties.append("*")
 
     state = clerk_client.authenticate_request(
         hx_req,

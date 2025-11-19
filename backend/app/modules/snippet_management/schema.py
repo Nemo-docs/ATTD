@@ -13,7 +13,6 @@ class EnsureCollectionResponse(BaseModel):
 class CreateSnippetRequest(BaseModel):
     """Request to create a new snippet."""
 
-    user_id: str = Field(..., min_length=1, description="Owner user identifier")
     content: str = Field(..., description="Snippet content (1-5 lines of text/code)")
     tags: Optional[List[str]] = Field(default_factory=list, description="Optional tags")
 
@@ -82,7 +81,6 @@ class LocalSnippetPayload(BaseModel):
 class SyncSnippetsRequest(BaseModel):
     """Request to synchronize local snippets with the server."""
 
-    user_id: str = Field(..., min_length=1, description="Owner user identifier")
     last_edit_unix: Optional[int] = Field(
         None, description="Client-side last edit unix timestamp"
     )

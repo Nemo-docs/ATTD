@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     UPSTASH_REDIS_REST_TOKEN: str
     IS_PRO_USER: str
     LOG_LEVEL: str
+    REDIS_URL: str
 
 
 try:
