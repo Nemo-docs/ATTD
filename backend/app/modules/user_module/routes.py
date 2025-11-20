@@ -2,7 +2,7 @@
 
 import re
 from fastapi import APIRouter, HTTPException, status
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from .schemas import (
     RegisterUserRequest,
     RegisterUserResponse,

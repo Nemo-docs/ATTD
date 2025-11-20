@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple, Any
 from urllib.parse import urlparse
 from core.clients import mongodb_client
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from utils.s3_utils import s3, zip_folder, upload_file_to_s3, download_and_extract_zip
 from app.modules.git_repo_setup.models import (
     GitRepoModel,

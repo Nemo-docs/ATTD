@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from core.log_util import logger_instance
+from core.logger import logger_instance
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 

@@ -3,7 +3,7 @@ import os
 import shutil
 import stat
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 
 
 

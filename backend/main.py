@@ -26,7 +26,7 @@ from core.postgres_db import engine, init_tables, verify_postgres_connection
 from core.clients import mongodb_client, redis_client
 
  # Import custom logger
-from core.log_util import logger_instance 
+from core.logger import logger_instance 
 
 # Import middleware
 from core.middleware import auth_middleware

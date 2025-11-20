@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from starlette import status
-from core.log_util import logger_instance
+from core.logger import logger_instance
 import traceback
 from .schemas import CreateGitRepoRequest, CreateGitRepoResponse, GetGitRepoResponse, UpdateGitRepoResponse
 from .services import GitRepoSetupService

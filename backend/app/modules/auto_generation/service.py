@@ -8,7 +8,7 @@ from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 from core.clients import open_router_client, mongodb_client
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.auto_generation.models import ProjectIntroModel
 from utils.mermaid_generation_validation import MermaidGenerationValidator
 from app.modules.git_repo_setup.management_services import GitRepoManagementService

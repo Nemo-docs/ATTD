@@ -11,7 +11,7 @@ from app.modules.auto_generation.models import  Definition
 from datetime import datetime, timezone
 from core.config import settings
 from core.clients import mongodb_client
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from utils.git_repo_setup_utils import git_clone_files, remove_cloned_files
 

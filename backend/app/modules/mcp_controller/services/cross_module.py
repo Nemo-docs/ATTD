@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Any 
 
-from core.log_util import logger_instance
+from core.logger import logger_instance
 
 from app.modules.page_management.service import PageManagementService
 from app.modules.snippet_management.service import SnippetManagementService

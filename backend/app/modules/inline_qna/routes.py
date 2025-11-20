@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Request
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.inline_qna.services import InlineQnaService
 from app.modules.inline_qna.schema import (
     InlineQnaRequest,

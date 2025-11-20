@@ -6,7 +6,7 @@ from uuid import UUID
 from datetime import datetime, timedelta, timezone
 
 from core.postgres_db import AsyncSessionLocal
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from utils.key_hash import KeyUtil
 
 from app.modules.api_keys.models import APIKey

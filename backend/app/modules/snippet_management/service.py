@@ -5,7 +5,7 @@ from pymongo.errors import PyMongoError
 
 from core.clients import mongodb_client
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from .models import SnippetModel
 
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from typing import Dict, List
-from core.log_util import logger_instance
+from core.logger import logger_instance
 import json
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.auto_generation.schema import (

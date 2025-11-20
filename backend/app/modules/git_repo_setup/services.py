@@ -4,7 +4,7 @@ import subprocess
 import threading
 from app.modules.auto_generation.service_definations import ParseDefinitionsService
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from utils.s3_utils import zip_folder, upload_file_to_s3
 from app.modules.git_repo_setup.management_services import GitRepoManagementService

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Request
 from typing import Any, Dict
 from uuid import UUID
 
-from core.log_util import logger_instance
+from core.logger import logger_instance
 
 from app.modules.api_keys.services.key_manage import KeyManageService
 from app.modules.api_keys.schemas import (

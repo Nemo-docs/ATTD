@@ -1,5 +1,5 @@
 from typing import List, Optional
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from core.clients import open_router_client
 from app.modules.inline_qna.prompts import system_prompt, highlight_user_prompt, non_highlight_user_prompt
 

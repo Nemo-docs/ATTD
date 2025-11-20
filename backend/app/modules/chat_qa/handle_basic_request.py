@@ -3,7 +3,7 @@ from typing import List, Dict
 import json
 from core.clients import open_router_client
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.auto_generation.service_definations import ParseDefinitionsService
 

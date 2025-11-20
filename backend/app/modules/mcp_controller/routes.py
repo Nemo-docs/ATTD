@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, HTTPException, status
 from typing import Dict, List, Any
 
-from core.log_util import logger_instance
+from core.logger import logger_instance
 
 from app.modules.mcp_controller.services.cross_module import MCPControllerService
 

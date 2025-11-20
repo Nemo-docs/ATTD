@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from core.clients import open_router_client
 from typing import Optional, Tuple
 

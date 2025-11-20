@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Request
-from core.log_util import logger_instance
+from core.logger import logger_instance
 
 from .service import SnippetManagementService
 from .schema import (

@@ -5,7 +5,7 @@ import os
 
 from app.modules.inline_qna.agents import InlineAgents
 from app.modules.inline_qna.models import InlineQnaModel
-from core.log_util import logger_instance
+from core.loggerort logger_instance
 from core.clients import open_router_client, mongodb_client
 from core.config import settings
 from app.modules.chat_qa.schema import MentionedDefinition

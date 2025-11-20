@@ -1,7 +1,7 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-from core.log_util import logger_instance
+from core.logger import logger_instance
 import string
 import secrets
 from typing import Dict

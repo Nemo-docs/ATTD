@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from core.clients import open_router_client, mongodb_client
 from core.config import settings
-from core.log_util import logger_instance
+from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from app.modules.chat_qa.handle_agentic_request import run_agentic_loop
 from app.modules.chat_qa.models import ChatQaModel, ChatConversationModel
