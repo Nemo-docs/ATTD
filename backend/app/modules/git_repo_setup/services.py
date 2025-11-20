@@ -9,7 +9,13 @@ from app.modules.auto_generation.service import AutoGenerationService
 from utils.s3_utils import zip_folder, upload_file_to_s3
 from app.modules.git_repo_setup.management_services import GitRepoManagementService
 from typing import Dict, Any
+from dotenv import load_dotenv
 
+load_dotenv()
+
+pro_user = True if "TRUE" in (os.getenv("IS_PRO_USER") or "").upper() else False
+if pro_user:
+    from pro_features.request_indexer import request_indexer
 
 class GitRepoSetupService:
     def __init__(self):
@@ -70,7 +76,17 @@ class GitRepoSetupService:
                     )
 
                 return repo_intro
-
+            if pro_user:
+                try:
+                    status = request_indexer(github_url)
+                    if status != 202:
+                        self.logger.warning(
+                            f"Indexer returned {status} for {github_url}; continuing without indexing"
+                        )
+                except Exception as e:
+                    self.logger.warning(
+                        f"Indexer call failed for {github_url}: {str(e)}; continuing without indexing"
+                    )
             # Run git clone
             self.logger.info(f"Cloning repo to disk: {github_url}")
             subprocess.run(["git", "clone", github_url, dest], check=True)
@@ -157,4 +173,21 @@ class GitRepoSetupService:
             return {"success": True}
         except Exception as e:
             self.logger.error(f"Error in parse_and_save_definitions: {str(e)}")
+            return {"error": str(e)}
+
+    async def update_repo_indexer(self, repo_url: str):
+        """
+        Update the repo indexer.
+        """
+        try:
+            status = request_indexer(repo_url)
+            if status != 202:
+                self.logger.warning(
+                    f"Indexer returned {status} for {repo_url}; continuing without indexing"
+                )
+            else:
+                self.logger.info(f"Indexer returned {status} for {repo_url}; indexing completed")
+            return {"success": True}
+        except Exception as e:
+            self.logger.error(f"Error in update_repo_indexer: {str(e)}")
             return {"error": str(e)}

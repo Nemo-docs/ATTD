@@ -64,6 +64,8 @@ async def update_git_repo(payload: CreateGitRepoRequest):
         result = await git_repo_setup_service.update_repo_by_url(str(payload.github_url))
         # parsing and saving new definitions to db
         await git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
+
+        await git_repo_setup_service.update_repo_indexer(repo_url=str(payload.github_url))
         
         logger_instance.info(f"{result}")
         return result
