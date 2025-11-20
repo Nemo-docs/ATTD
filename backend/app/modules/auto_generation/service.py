@@ -132,7 +132,6 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                     },
                     {"role": "user", "content": intro_prompt},
                 ],
-                max_tokens=50000,
             )
 
             project_intro = intro_response.choices[0].message.content.strip()
@@ -593,7 +592,6 @@ Return a JSON object where each key is a filename and each value is a brief desc
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=20 * 1000,
                     response_format={
                         "type": "json_schema",
                         "json_schema": {
