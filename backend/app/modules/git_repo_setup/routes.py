@@ -17,17 +17,17 @@ async def create_git_repo(payload: CreateGitRepoRequest):
     """Accept a GitHub URL, clone it on disk, and return metadata including a repo_hash."""
     try:
         logger_instance.info(f"Creating git repo for URL: {payload.github_url}")
-        result = git_repo_setup_service.clone_repo_to_disk(str(payload.github_url))
-        logger_instance.info(f"Cloned repo to disk: {result}")
-        # parsing and saving new definitions to db
-        result = git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
-        logger_instance.info(f"Parsed and saved definitions to db: {result}")
-        if "error" in result:
+        intro_result = await git_repo_setup_service.clone_repo_to_disk(str(payload.github_url))
+        logger_instance.info(f"Cloned repo to disk: {intro_result}")
+        # parsing and saving new definitions to db (do not overwrite intro_result)
+        parse_result = await git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
+        logger_instance.info(f"Parsed and saved definitions to db: {parse_result}")
+        if "error" in parse_result:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result["error"],
+                detail=parse_result["error"],
             )
-        return result
+        return intro_result
     except Exception as e:
         logger_instance.error(f"Unexpected error in create_git_repo: {traceback.format_exc()}")
         raise HTTPException(
@@ -40,7 +40,7 @@ async def get_git_repo(repo_hash: str):
     """Retrieve repository metadata by its repo_hash."""
     try:
         logger_instance.info(f"Fetching git repo data for hash: {repo_hash}")
-        result = git_repo_setup_service.get_repo_by_hash(repo_hash)
+        result = await git_repo_setup_service.get_repo_by_hash(repo_hash)
         logger_instance.info(f"Result: {result}")
         if "error" in result:
             raise HTTPException(
@@ -61,9 +61,9 @@ async def update_git_repo(payload: CreateGitRepoRequest):
     try:
         logger_instance.info(f"Updating git repo for URL: {payload.github_url}")
         
-        result = git_repo_setup_service.update_repo_by_url(str(payload.github_url))
+        result = await git_repo_setup_service.update_repo_by_url(str(payload.github_url))
         # parsing and saving new definitions to db
-        git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
+        await git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
         
         logger_instance.info(f"{result}")
         return result

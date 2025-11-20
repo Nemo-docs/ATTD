@@ -1,7 +1,7 @@
 import hashlib
 import os
 import subprocess
-import threading
+import asyncio
 from app.modules.auto_generation.service_definations import ParseDefinitionsService
 from core.config import settings
 from core.logger import logger_instance
@@ -30,7 +30,7 @@ class GitRepoSetupService:
     def _repo_name_from_url(self, github_url: str) -> str:
         return github_url.split("/")[-1].replace(".git", "")
 
-    def clone_repo_to_disk(
+    async def clone_repo_to_disk(
         self, github_url: str, target_base: str = settings.PARENT_DIR
     ) -> str:
         """Clone the github repo to a local directory and return the path.
@@ -45,7 +45,7 @@ class GitRepoSetupService:
             dest = os.path.join(target_base, repo_hash)
             os.makedirs(target_base, exist_ok=True)
             # checking in db if the repo already exists
-            repo_intro = self.auto_generation_service.get_project_intro_by_hash(
+            repo_intro = await self.auto_generation_service.get_project_intro_by_hash(
                 repo_hash
             )
             if repo_intro is not None:
@@ -56,14 +56,14 @@ class GitRepoSetupService:
                 # project metadata from the auto-generation service so the API
                 # response matches the expected response model.
                 self.logger.info(f"Repo already exists on disk: {dest}")
-                repo_intro = self.auto_generation_service.get_project_intro_by_hash(
+                repo_intro = await self.auto_generation_service.get_project_intro_by_hash(
                     repo_hash
                 )
 
                 if repo_intro is None:
                     # If no stored intro exists, attempt to (re)generate it.
                     self.logger.info(f"Generating new intro for repo: {repo_hash}")
-                    repo_intro = self.auto_generation_service.generate_intro(
+                    repo_intro = await self.auto_generation_service.generate_intro(
                         github_url=str(github_url),
                         repo_hash=repo_hash,
                         name=self._repo_name_from_url(str(github_url)),
@@ -81,7 +81,7 @@ class GitRepoSetupService:
 
             # generate intro and save to db
             self.logger.info(f"Generating new intro for repo: {repo_hash}")
-            result = self.auto_generation_service.generate_intro(
+            result = await self.auto_generation_service.generate_intro(
                 github_url=str(github_url),
                 repo_hash=repo_hash,
                 name=self._repo_name_from_url(str(github_url)),
@@ -91,7 +91,7 @@ class GitRepoSetupService:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_repo_by_hash(self, repo_hash: str):
+    async def get_repo_by_hash(self, repo_hash: str):
         """
         Retrieve repo metadata (generated intro) by its hash.
 
@@ -99,7 +99,7 @@ class GitRepoSetupService:
         """
         try:
             self.logger.info(f"Retrieving repo data for hash: {repo_hash}")
-            repo_intro = self.auto_generation_service.get_project_intro_by_hash(
+            repo_intro = await self.auto_generation_service.get_project_intro_by_hash(
                 repo_hash
             )
 
@@ -111,7 +111,7 @@ class GitRepoSetupService:
             self.logger.error(f"Error in get_repo_by_hash: {str(e)}")
             return {"error": str(e)}
 
-    def update_repo_by_url(self, github_url: str) -> Dict[str, Any]:
+    async def update_repo_by_url(self, github_url: str) -> Dict[str, Any]:
         """
         Update repo metadata (generated intro) by its hash.
 
@@ -121,7 +121,7 @@ class GitRepoSetupService:
         # Normalize URL to canonical .git variant
         github_url = self._normalize_github_url(github_url)
         
-        result = self.git_repo_management_service.check_git_repo_updated(github_url)
+        result = await self.git_repo_management_service.check_git_repo_updated(github_url)
 
         if result.get("updated"):
             self.logger.info(f"Repo is up to date for URL: {github_url}")
@@ -129,10 +129,10 @@ class GitRepoSetupService:
         
         repo_hash = self._generate_repo_hash(github_url)
         
-        # Run generate_intro in a background thread without waiting
-        def run_generate_intro():
+        # Run generate_intro in background task without waiting
+        async def run_generate_intro():
             try:
-                self.auto_generation_service.generate_intro(
+                await self.auto_generation_service.generate_intro(
                     github_url=github_url,
                     repo_hash=repo_hash,
                     name=self._repo_name_from_url(github_url),
@@ -141,20 +141,19 @@ class GitRepoSetupService:
             except Exception as e:
                 self.logger.error(f"Error in background intro generation: {str(e)}")
         
-        thread = threading.Thread(target=run_generate_intro, daemon=True)
-        thread.start()
+        asyncio.create_task(run_generate_intro())
         
         self.logger.info(f"Started background intro generation for hash: {repo_hash}")
         return {"up_to_date": False}
 
-    def parse_and_save_definitions(self, repo_url: str):
+    async def parse_and_save_definitions(self, repo_url: str):
         """
         Parse and save definitions to db.
         """
         try:
             repo_hash = self._generate_repo_hash(repo_url)
             parse_definitions = ParseDefinitionsService()
-            parse_definitions.parse_definitions(repo_hash=repo_hash, github_url=repo_url)
+            await parse_definitions.parse_definitions(repo_hash=repo_hash, github_url=repo_url)
             return {"success": True}
         except Exception as e:
             self.logger.error(f"Error in parse_and_save_definitions: {str(e)}")

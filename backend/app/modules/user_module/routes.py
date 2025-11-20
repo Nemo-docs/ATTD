@@ -32,7 +32,7 @@ async def register_user(request: RegisterUserRequest) -> RegisterUserResponse:
     """Create the user record if it does not already exist."""
 
     try:
-        user = user_service.ensure_user(request.user_id)
+        user = await user_service.ensure_user(request.user_id)
     except Exception as exc:  # noqa: BLE001 - broad to surface backend errors
         logger_instance.error("Failed to register user %s: %s", request.user_id, exc)
         raise HTTPException(
@@ -50,7 +50,7 @@ async def get_user(user_id: str) -> UserResponse:
     _validate_user_id(user_id)
 
     try:
-        user = user_service.get_user(user_id)
+        user = await user_service.get_user(user_id)
     except Exception as exc:  # noqa: BLE001
         logger_instance.error("Failed to fetch user %s: %s", user_id, exc)
         raise HTTPException(

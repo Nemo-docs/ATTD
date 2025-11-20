@@ -32,7 +32,7 @@ async def answer_query(
         logger_instance.info(f"Received inline Q&A request for page: {request.page_id}")
         logger_instance.info(f"Query: {request.query}")
         # Generate answer using the service
-        result = inline_qna_service.answer_query(
+        result = await inline_qna_service.answer_query(
             user_id=req.state.user_id,
             query=request.query,
             page_id=request.page_id,

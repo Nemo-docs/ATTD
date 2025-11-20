@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     )
 
     OPENROUTER_API_KEY: str
+    AZURE_API_KEY: str
+    AZURE_API_BASE: str
     MONGODB_URI: str
     DB_NAME: str
     DATABASE_URL: str

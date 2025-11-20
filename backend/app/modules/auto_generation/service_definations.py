@@ -6,7 +6,7 @@ import os
 from hashlib import sha256
 import uuid
 from pydantic import BaseModel, Field
-from pymongo.collection import Collection
+from pymongo.asynchronous.collection import AsyncCollection
 from app.modules.auto_generation.models import  Definition
 from datetime import datetime, timezone
 from core.config import settings
@@ -24,9 +24,9 @@ class ParseDefinitionsService:
         # Database setup
         self.db_name = settings.DB_NAME
         self.db = mongodb_client[self.db_name]
-        self.collection: Collection = self.db["definitions"]
+        self.collection: AsyncCollection = self.db["definitions"]
 
-    def parse_definitions(self, repo_hash: str, github_url: str):
+    async def parse_definitions(self, repo_hash: str, github_url: str):
         try:
             definitions_repo: List[Definition] = []
             
@@ -51,7 +51,7 @@ class ParseDefinitionsService:
                 definitions_repo.extend(self._get_definitions_per_file(root, lang=lang, code=code, clean_code_file_path = clean_code_file_path))
 
             # save to db
-            save_success = self.save_definitions(repo_hash=repo_hash, definitions=definitions_repo )
+            save_success = await self.save_definitions(repo_hash=repo_hash, definitions=definitions_repo )
             if not save_success:
                 raise Exception("Failed to save definitions to database")
             return save_success
@@ -61,9 +61,9 @@ class ParseDefinitionsService:
         finally:
             remove_cloned_files(repo_hash=repo_hash, random_id=random_id)
 
-    def save_definitions(self, repo_hash: str, definitions: List[Definition]):
+    async def save_definitions(self, repo_hash: str, definitions: List[Definition]):
         definitions_dict = [definition.model_dump() for definition in definitions]
-        result = self.collection.insert_one({
+        result = await self.collection.insert_one({
             "repo_hash": repo_hash,
             "definitions": definitions_dict,
             "created_at": datetime.now(timezone.utc),
@@ -71,11 +71,11 @@ class ParseDefinitionsService:
         })
         return result.acknowledged
 
-    def get_all_node_short_info(self, repo_hash: str):
+    async def get_all_node_short_info(self, repo_hash: str):
         """
         fetch the node type, node name, file name, start and end lines
         """
-        definitions = self.collection.find_one({"repo_hash": repo_hash})
+        definitions = await self.collection.find_one({"repo_hash": repo_hash})
         if definitions is None:
             raise Exception(f"Definitions not found for hash: {repo_hash}")
         all_node_info = []
@@ -86,8 +86,8 @@ class ParseDefinitionsService:
             "start_end_lines":definition["start_end_lines"]})
         return all_node_info
 
-    def get_all_node_full_info(self, repo_hash: str):
-        definitions = self.collection.find_one({"repo_hash": repo_hash})
+    async def get_all_node_full_info(self, repo_hash: str):
+        definitions = await self.collection.find_one({"repo_hash": repo_hash})
         if definitions is None:
             raise Exception(f"Definitions not found for hash: {repo_hash}")
         return definitions["definitions"]

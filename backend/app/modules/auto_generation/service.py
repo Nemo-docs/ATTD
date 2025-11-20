@@ -4,9 +4,10 @@ import os
 import hashlib
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from pymongo.collection import Collection
+from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.errors import PyMongoError
-from core.clients import open_router_client, mongodb_client
+from core.clients import mongodb_client
+from core.llm_clients import llm_client
 from core.config import settings
 from core.logger import logger_instance
 from app.modules.auto_generation.models import ProjectIntroModel
@@ -34,18 +35,22 @@ class AutoGenerationService:
         self.db_name = settings.DB_NAME
         self.collection_name = "project_intros"
         self.db = mongodb_client[self.db_name]
-        self.collection: Collection = self.db[self.collection_name]
+        self.collection: AsyncCollection = self.db[self.collection_name]
+        self._indexes_created = False
 
-        # Create index on repo_hash for faster lookups
-        try:
-            self.collection.create_index("repo_hash", unique=True)
-            # self.logger.info(
-            #     f"Created unique index on repo_hash in collection {self.collection_name}"
-            # )
-        except PyMongoError as e:
-            self.logger.error(f"Could not create index: {e}")
+    async def _ensure_indexes(self) -> None:
+        """Ensure indexes exist. Called lazily on first DB operation."""
+        if not self._indexes_created:
+            try:
+                await self.collection.create_index("repo_hash", unique=True)
+                self.logger.info(
+                    f"Created index on repo_hash in collection {self.collection_name}"
+                )
+                self._indexes_created = True
+            except PyMongoError as e:
+                self.logger.error(f"Could not create index: {e}")
 
-    def generate_intro(self, github_url: str, repo_hash: str, name: str) -> Dict:
+    async def generate_intro(self, github_url: str, repo_hash: str, name: str) -> Dict:
         """
         Generate project introduction and data flow diagram, then save to database.
         If repo already exists in database, return existing data instead of regenerating.
@@ -54,12 +59,13 @@ class AutoGenerationService:
         Output: Dictionary containing project intro data and cursory explanation
         """
         try:
+            await self._ensure_indexes()
             # Step 1: Check if repo already exists in database
             self.logger.info(f"Checking if project intro exists for repo: {repo_hash}")
-            existing_intro = self._get_project_intro(repo_hash)
+            existing_intro = await self._get_project_intro(repo_hash)
             
             # Check if repo is updated
-            git_repo_updated = self.git_repo_management_service.check_git_repo_updated(github_url)
+            git_repo_updated = await self.git_repo_management_service.check_git_repo_updated(github_url)
             latest_commit_hash = git_repo_updated.get("latest_commit_hash")
 
             if existing_intro and git_repo_updated.get("exists") and git_repo_updated.get("updated"):
@@ -85,7 +91,7 @@ class AutoGenerationService:
             self.logger.info(
                 f"Generating new cursory explanation for repo: {repo_hash}"
             )
-            cursory_explanation = self._generate_cursory_explanation(github_url, repo_hash, latest_commit_hash)
+            cursory_explanation = await self._generate_cursory_explanation(github_url, repo_hash, latest_commit_hash)
 
             if cursory_explanation.startswith("Error:"):
                 return f"Error in generate_intro: {cursory_explanation}"
@@ -117,8 +123,8 @@ Write markdown format with proper headings and subheadings.
 Format the response as a coherent introduction that someone unfamiliar with the codebase could understand. Be professional, clear, and engaging."""
 
             # Step 4: Generate the introduction using OpenAI
-            intro_response = open_router_client.chat.completions.create(
-                model="openai/gpt-5-mini",
+            intro_response = llm_client.chat.completions.create(
+                model="gpt-5-mini",
                 messages=[
                     {
                         "role": "system",
@@ -173,7 +179,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
 
             # Save to database
             self.logger.info(f"Saving project intro to database for repo: {repo_hash}")
-            save_success = self._save_project_intro(project_data)
+            save_success = await self._save_project_intro(project_data)
 
             if not save_success:
                 self.logger.error(
@@ -196,7 +202,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
             self.logger.error(f"Error generating intro: {str(e)}")
             return {"error": str(e), "repo_hash": repo_hash}
 
-    def _generate_cursory_explanation(self, github_url: str, repo_hash: str, latest_commit_hash: str) -> str:
+    async def _generate_cursory_explanation(self, github_url: str, repo_hash: str, latest_commit_hash: str) -> str:
         """
         Input: Repo hash
         Output: Tree hierarchy string of file names with their roles (cursory explanation)
@@ -204,7 +210,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
         try:
             repo_path = settings.PARENT_DIR + "/" + repo_hash
 
-            repo_data = self.git_repo_management_service.get_updated_repo_by_hash(repo_hash)
+            repo_data = await self.git_repo_management_service.get_updated_repo_by_hash(repo_hash)
 
             if repo_data.get("not_found"):
                 # Step 1: Get all files excluding common irrelevant directories
@@ -225,7 +231,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 # self.logger.info(f"File roles: {file_roles}")
 
                 # Step 5: Save git_repo document
-                self.git_repo_management_service.upsert_git_repo_model(github_url, repo_hash, repo_path, latest_commit_hash, file_roles)
+                await self.git_repo_management_service.upsert_git_repo_model(github_url, repo_hash, repo_path, latest_commit_hash, file_roles)
                 self.logger.info(f"Saved git_repo document for repo: {repo_hash}")
 
                 # Step 6: Convert to tree hierarchy
@@ -265,7 +271,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 # self.logger.info(f"File roles: {file_roles}")
                 
                 # Step 6: Update git repo document
-                update_result = self.git_repo_management_service.update_git_repo_model(repo_path, repo_model, merkle_diff, file_roles)
+                update_result = await self.git_repo_management_service.update_git_repo_model(repo_path, repo_model, merkle_diff, file_roles)
                 
                 # Step 7: Convert to tree hierarchy using aggregated roles from updated repo model
                 updated_repo_model = update_result.get("updated_repo_model", repo_model) if isinstance(update_result, dict) else repo_model
@@ -578,8 +584,8 @@ Files to analyze:
 Return a JSON object where each key is a filename and each value is a brief description of the file's role and purpose in the project. Use point form for descriptions."""
 
             try:
-                response = open_router_client.chat.completions.create(
-                    model="openai/gpt-5-mini",
+                response = llm_client.chat.completions.create(
+                    model="gpt-5-mini",
                     messages=[
                         {
                             "role": "system",
@@ -755,7 +761,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
 
         return "\n".join(tree_lines)
 
-    def get_project_intro(self, repo_path: str) -> Optional[Dict]:
+    async def get_project_intro(self, repo_path: str) -> Optional[Dict]:
         """
         Retrieve project introduction from database.
 
@@ -772,7 +778,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             self.logger.error(f"Error retrieving project intro: {str(e)}")
             return {"error": str(e), "repo_path": repo_path}
 
-    def get_project_intro_by_hash(self, repo_hash: str) -> Optional[Dict]:
+    async def get_project_intro_by_hash(self, repo_hash: str) -> Optional[Dict]:
         """
         Retrieve project introduction from database by hash.
 
@@ -783,13 +789,14 @@ Return a JSON object where each key is a filename and each value is a brief desc
             Optional[Dict]: Project intro data if found, None otherwise
         """
         try:
+            await self._ensure_indexes()
             self.logger.info(f"Retrieving project intro for hash: {repo_hash}")
-            return self._get_project_intro(repo_hash)
+            return await self._get_project_intro(repo_hash)
         except Exception as e:
             self.logger.error(f"Error retrieving project intro by hash: {str(e)}")
             return {"error": str(e), "repo_hash": repo_hash}
 
-    def delete_project_intro(self, repo_path: str) -> bool:
+    async def delete_project_intro(self, repo_path: str) -> bool:
         """
         Delete project introduction from database.
 
@@ -800,16 +807,17 @@ Return a JSON object where each key is a filename and each value is a brief desc
             bool: True if deleted successfully, False otherwise
         """
         try:
+            await self._ensure_indexes()
             repo_hash = hashlib.sha256(repo_path.encode()).hexdigest()
             self.logger.info(f"Deleting project intro for repo: {repo_path}")
-            return self._delete_project_intro(repo_hash)
+            return await self._delete_project_intro(repo_hash)
         except Exception as e:
             self.logger.error(f"Error deleting project intro: {str(e)}")
             return False
 
     # Database operations (moved from database.py)
 
-    def _save_project_intro(self, project_data: Dict[str, Any]) -> bool:
+    async def _save_project_intro(self, project_data: Dict[str, Any]) -> bool:
         """
         Save project introduction data to MongoDB.
 
@@ -825,7 +833,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             project_data["updated_at"] = datetime.utcnow()
 
             # Insert or update based on repo_hash
-            result = self.collection.replace_one(
+            result = await self.collection.replace_one(
                 {"repo_hash": project_data["repo_hash"]}, project_data, upsert=True
             )
 
@@ -844,7 +852,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             self.logger.error(f"Error saving project intro to database: {e}")
             raise e
 
-    def _get_project_intro(self, repo_hash: str) -> Optional[Dict[str, Any]]:
+    async def _get_project_intro(self, repo_hash: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve project introduction data from MongoDB by repo hash.
 
@@ -855,7 +863,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             Optional[Dict]: Project intro data if found, None otherwise
         """
         try:
-            result = self.collection.find_one({"repo_hash": repo_hash})
+            result = await self.collection.find_one({"repo_hash": repo_hash})
             if result:
                 # Remove MongoDB _id field for cleaner response
                 result.pop("_id", None)
@@ -889,7 +897,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             self.logger.error(f"Error retrieving project intro by path: {e}")
             return None
 
-    def _delete_project_intro(self, repo_hash: str) -> bool:
+    async def _delete_project_intro(self, repo_hash: str) -> bool:
         """
         Delete project introduction data from MongoDB by repo hash.
 
@@ -900,7 +908,7 @@ Return a JSON object where each key is a filename and each value is a brief desc
             bool: True if deleted successfully, False otherwise
         """
         try:
-            result = self.collection.delete_one({"repo_hash": repo_hash})
+            result = await self.collection.delete_one({"repo_hash": repo_hash})
             if result.deleted_count > 0:
                 self.logger.info(
                     f"Successfully deleted project intro for hash: {repo_hash}"

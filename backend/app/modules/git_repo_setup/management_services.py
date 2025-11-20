@@ -361,15 +361,19 @@ class GitRepoManagementService:
         self.merkle_service = MerkleHashService()
         self.db = mongodb_client[settings.DB_NAME]
         self.git_repos_collection = self.db["git_repos"]
-        
-        # Create index on repo_hash for faster lookups
-        try:
-            self.git_repos_collection.create_index("repo_hash", unique=True)
-            logger_instance.info(
-                f"Created unique index on repo_hash in collection {self.git_repos_collection}"
-            )
-        except PyMongoError as e:
-            logger_instance.error(f"Could not create index: {e}")
+        self._indexes_created = False
+
+    async def _ensure_indexes(self) -> None:
+        """Ensure indexes exist. Called lazily on first DB operation."""
+        if not self._indexes_created:
+            try:
+                await self.git_repos_collection.create_index("repo_hash", unique=True)
+                logger_instance.info(
+                    "Created unique index on repo_hash in git_repos collection"
+                )
+                self._indexes_created = True
+            except PyMongoError as e:
+                logger_instance.error(f"Could not create index: {e}")
 
 
     def _normalize_github_url(self, github_url: str) -> str:
@@ -390,7 +394,7 @@ class GitRepoManagementService:
         return name.replace(".git", "")
 
 
-    def save_git_repo_db(self, git_repo: GitRepoModel) -> Dict[str, Any]:
+    async def save_git_repo_db(self, git_repo: GitRepoModel) -> Dict[str, Any]:
         """
         Save a GitRepoModel into the MongoDB git_repos collection.
         
@@ -406,6 +410,7 @@ class GitRepoManagementService:
                 - error: error message if failed
         """
         try:
+            await self._ensure_indexes()
             # Update the updated_at timestamp
             git_repo.updated_at = datetime.utcnow()
             
@@ -416,7 +421,7 @@ class GitRepoManagementService:
             filter_query = {"repo_hash": git_repo.repo_hash}
             
             # Perform upsert operation
-            result = self.git_repos_collection.update_one(
+            result = await self.git_repos_collection.update_one(
                 filter_query,
                 {"$set": repo_dict},
                 upsert=True
@@ -432,7 +437,7 @@ class GitRepoManagementService:
             }
 
 
-    def check_git_repo_updated(self, github_url: str) -> Dict[str, Any]:
+    async def check_git_repo_updated(self, github_url: str) -> Dict[str, Any]:
         """
         Check if a GitRepoModel exists and if updated in the MongoDB git_repos collection.
         
@@ -448,16 +453,17 @@ class GitRepoManagementService:
             
         """
         try:
+            await self._ensure_indexes()
             # Normalize URL to canonical .git variant and compute repo_hash
             normalized_url = self._normalize_github_url(github_url)
             repo_hash = self._generate_repo_hash(normalized_url)
             
             # Fetch latest commit hash from GitHub unconditionally
-            fetched_commit_hash = self.get_latest_commit_hash(normalized_url)
+            fetched_commit_hash = await self.get_latest_commit_hash(normalized_url)
             
             # Check if the repository exists
             filter_query = {"repo_hash": repo_hash}
-            result = self.git_repos_collection.find_one(filter_query)
+            result = await self.git_repos_collection.find_one(filter_query)
     
             if not result:
                 return {"exists": False, "updated": False, "latest_commit_hash": fetched_commit_hash}  # updated variable is same as up_to_date
@@ -517,7 +523,7 @@ class GitRepoManagementService:
             return {"error": str(e)}
 
 
-    def get_latest_commit_hash(self, github_url: str) -> str:
+    async def get_latest_commit_hash(self, github_url: str) -> str:
         """
         Return the latest commit SHA on the default branch (main or master) for a given GitHub repository URL.
         
@@ -542,17 +548,19 @@ class GitRepoManagementService:
         
         # Try main branch first
         api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/main"
-        response = httpx.get(api_url, headers=headers)
         
-        # If main branch doesn't exist (404), try master branch
-        if response.status_code != 200:
-            api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/master"
-            response = httpx.get(api_url, headers=headers)
-        
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(api_url, headers=headers)
+            
+            # If main branch doesn't exist (404), try master branch
+            if response.status_code != 200:
+                api_url = f"https://api.github.com/repos/{owner}/{repo}/commits/master"
+                response = await client.get(api_url, headers=headers)
+            
+            response.raise_for_status()
 
-        # Return the plain text SHA (strip whitespace)
-        return response.text.strip()
+            # Return the plain text SHA (strip whitespace)
+            return response.text.strip()
 
 
 
@@ -608,10 +616,11 @@ class GitRepoManagementService:
             return {"error": str(e)}
 
 
-    def get_existing_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
+    async def get_existing_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
         try:
+            await self._ensure_indexes()
             filter_query = {"repo_hash": repo_hash}
-            repo_doc = self.git_repos_collection.find_one(filter_query)
+            repo_doc = await self.git_repos_collection.find_one(filter_query)
             
             if not repo_doc:
                 return {"error": f"Repository with repo_hash '{repo_hash}' not found"}
@@ -628,7 +637,7 @@ class GitRepoManagementService:
             return {"error": str(e)}
 
 
-    def insert_role_hash(self, repo_model: GitRepoModel, filedir_path: str, filedir_hash: str, filedir_role: str) -> Dict[str, Any]:
+    async def insert_role_hash(self, repo_model: GitRepoModel, filedir_path: str, filedir_hash: str, filedir_role: str) -> Dict[str, Any]:
         """
         Update both the hash and role for a file or directory in the repository's merkle tree.
         
@@ -676,7 +685,7 @@ class GitRepoManagementService:
                 return {"error": f"File or directory with path '{filedir_path}' not found in merkle tree"}
             
             # Save the updated repo back to the database
-            save_result = self.save_git_repo_db(repo_model)
+            save_result = await self.save_git_repo_db(repo_model)
             if "error" in save_result:
                 return save_result
             
@@ -747,7 +756,7 @@ class GitRepoManagementService:
             # Be safe: never block updates due to errors here
             logger_instance.error(f"_preserve_unchanged_roles skipped due to error: {e}")
 
-    def get_updated_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
+    async def get_updated_repo_by_hash(self, repo_hash: str) -> Dict[str, Any]:
         """
         Get updated repository by comparing latest commit hash with stored version.
         
@@ -767,9 +776,10 @@ class GitRepoManagementService:
                 - not_found: bool indicating if repo was not found
         """
         try:
+            await self._ensure_indexes()
             # Fetch the repository document by repo_hash
             filter_query = {"repo_hash": repo_hash}
-            repo_doc = self.git_repos_collection.find_one(filter_query)
+            repo_doc = await self.git_repos_collection.find_one(filter_query)
             
             if not repo_doc:
                 return {"not_found": True}
@@ -783,7 +793,7 @@ class GitRepoManagementService:
             
             # Get latest commit hash from GitHub
             normalized_url = self._normalize_github_url(repo_model.github_url)
-            remote_latest_commit = self.get_latest_commit_hash(normalized_url)
+            remote_latest_commit = await self.get_latest_commit_hash(normalized_url)
             
             if not remote_latest_commit:
                 return {"error": "Failed to fetch latest commit hash from GitHub"}
@@ -875,7 +885,7 @@ class GitRepoManagementService:
                 repo_model.updated_at = datetime.utcnow()
                 
                 # Save updated model to DB
-                save_result = self.save_git_repo_db(repo_model)
+                save_result = await self.save_git_repo_db(repo_model)
                 if "error" in save_result:
                     return save_result
                 
@@ -893,7 +903,7 @@ class GitRepoManagementService:
             return {"error": f"Failed to get updated repository: {str(e)}"}
 
 
-    def upsert_git_repo_model(self, github_url: str, repo_hash: str, repo_path: str, latest_commit_hash: str, file_roles: Dict[str, str]) -> Dict[str, Any]:
+    async def upsert_git_repo_model(self, github_url: str, repo_hash: str, repo_path: str, latest_commit_hash: str, file_roles: Dict[str, Any]) -> Dict[str, Any]:
         """
         Upsert a git repository model with merkle tree generation and file role assignment.
         
@@ -970,7 +980,7 @@ class GitRepoManagementService:
             )
             
             # Check if repository exists
-            existing_repo = self.git_repos_collection.find_one({"repo_hash": repo_hash})
+            existing_repo = await self.git_repos_collection.find_one({"repo_hash": repo_hash})
             existed = existing_repo is not None
             
             # Derive repo_name from canonical github_url (.git enforced)
@@ -991,7 +1001,7 @@ class GitRepoManagementService:
             )
             
             # Save to database (upsert operation)
-            save_result = self.save_git_repo_db(git_repo)
+            save_result = await self.save_git_repo_db(git_repo)
             if "error" in save_result:
                 return save_result
             
@@ -1007,7 +1017,7 @@ class GitRepoManagementService:
             return {"error": f"Failed to upsert git repo model: {str(e)}"}
 
 
-    def update_git_repo_model(self, repo_path: str, new_repo_model: GitRepoModel, merkle_diff: Dict[str, Any], file_roles: Dict[str, str]) -> Dict[str, Any]:
+    async def update_git_repo_model(self, repo_path: str, new_repo_model: GitRepoModel, merkle_diff: Dict[str, Any], file_roles: Dict[str, str]) -> Dict[str, Any]:
         """
         Update an existing repository model with new merkle tree data and file roles.
         
@@ -1086,7 +1096,7 @@ class GitRepoManagementService:
             new_repo_model.updated_at = datetime.utcnow()
             
             # Save the updated model to database
-            save_result = self.save_git_repo_db(new_repo_model)
+            save_result = await self.save_git_repo_db(new_repo_model)
             if "error" in save_result:
                 return save_result
             

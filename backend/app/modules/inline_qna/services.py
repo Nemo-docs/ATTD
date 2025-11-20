@@ -5,8 +5,8 @@ import os
 
 from app.modules.inline_qna.agents import InlineAgents
 from app.modules.inline_qna.models import InlineQnaModel
-from core.loggerort logger_instance
-from core.clients import open_router_client, mongodb_client
+from core.logger import logger_instance
+from core.clients import mongodb_client
 from core.config import settings
 from app.modules.chat_qa.schema import MentionedDefinition
 from app.modules.chat_qa.handle_basic_request import resolve_definations
@@ -20,7 +20,7 @@ class InlineQnaService:
     def __init__(self):
         self.logger = logger_instance
 
-    def answer_query(
+    async def answer_query(
         self, user_id: str, query: str, page_id: str, mentioned_definitions: Optional[List[MentionedDefinition]], repo_hash: str
     ) -> Dict[str, Any]:
         """
@@ -71,7 +71,7 @@ class InlineQnaService:
                 resolved_query=resolved_query,
                 answer=answer
             )
-            self.save_response_to_database(inline_qna_model)
+            await self.save_response_to_database(inline_qna_model)
             return response_data
 
         except Exception as e:
@@ -84,7 +84,7 @@ class InlineQnaService:
                 "repo_hash": repo_hash,
             }
 
-    def save_response_to_database(self, inline_qna_model: InlineQnaModel) -> None:
+    async def save_response_to_database(self, inline_qna_model: InlineQnaModel) -> None:
         """
         Save the response to the database.
         """
@@ -93,6 +93,6 @@ class InlineQnaService:
             coll = mongodb_client[db_name]["inline_qna"]
             doc = inline_qna_model.dict()
             # Let MongoDB set its own _id while storing our id
-            coll.insert_one(doc)
+            await coll.insert_one(doc)
         except Exception as e:
             self.logger.error(f"Failed to save inline Q&A to DB: {e}")

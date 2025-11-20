@@ -1,12 +1,11 @@
 from typing import List, Optional
 from core.logger import logger_instance
-from core.clients import open_router_client
+from core.llm_clients import llm_client
 from app.modules.inline_qna.prompts import system_prompt, highlight_user_prompt, non_highlight_user_prompt
 
 class InlineAgents:
     def __init__(self):
         self.logger = logger_instance
-        self.open_router_client = open_router_client
 
     @classmethod
     def answer_query(cls, resolved_query: str) -> str:
@@ -19,8 +18,8 @@ class InlineAgents:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": highlight_user_prompt(resolved_query)},
                 ]
-                resp = open_router_client.chat.completions.create(
-                    model="openai/gpt-5-mini",
+                resp = llm_client.chat.completions.create(
+                    model="gpt-5-mini",
                     messages=msgs,
                 )
                 answer = resp.choices[0].message.content.strip()
@@ -30,8 +29,8 @@ class InlineAgents:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": non_highlight_user_prompt(resolved_query)},
                 ]
-                resp = open_router_client.chat.completions.create(
-                    model="openai/gpt-5-mini",
+                resp = llm_client.chat.completions.create(
+                    model="gpt-5-mini",
                     messages=msgs,
                 )
                 answer = resp.choices[0].message.content.strip()

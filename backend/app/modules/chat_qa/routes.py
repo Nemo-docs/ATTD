@@ -43,7 +43,7 @@ async def send_chat_message(
         logger_instance.info(f"User ID: {user_id}")
 
         # Route the request to the appropriate handler in the service
-        result = chat_qa_service.route_request(request, user_id)
+        result = await chat_qa_service.route_request(request, user_id)
 
         # Check if there was an error during generation
         if "error" in result:
@@ -110,7 +110,7 @@ async def create_conversation(
         logger_instance.info(f"User ID: {user_id}")
 
         # Create conversation using the service
-        result = chat_qa_service.create_conversation(
+        result = await chat_qa_service.create_conversation(
             title=request.title,
             page_id=request.page_id,
             user_id=user_id,
@@ -158,7 +158,7 @@ async def list_conversations(req: Request):
     """List conversations for the authenticated user."""
     try:
         user_id = req.state.user_id
-        results = chat_qa_service.get_conversations(user_id=user_id)
+        results = await chat_qa_service.get_conversations(user_id=user_id)
         return results
     except ValueError as e:
         logger_instance.error(f"Failed to list conversations: {e}")
@@ -175,7 +175,7 @@ async def get_conversation_messages(conversation_id: str, req: Request):
     """Return messages for a conversation belonging to the authenticated user."""
     try:
         user_id = req.state.user_id
-        messages = chat_qa_service.get_conversation_messages(
+        messages = await chat_qa_service.get_conversation_messages(
             conversation_id, user_id=user_id
         )
         return {"messages": messages}

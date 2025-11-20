@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from core.config import settings
 from core.logger import logger_instance
-from core.clients import open_router_client
+from core.llm_clients import llm_client
 from typing import Optional, Tuple
 
 import httpx
@@ -72,7 +72,7 @@ class MermaidGenerationValidator:
                 cursory_explanation, previous_error_code
             )
 
-            diagram_response = open_router_client.chat.completions.create(
+            diagram_response = llm_client.chat.completions.create(
                 model="anthropic/claude-3.7-sonnet",
                 messages=[
                     {

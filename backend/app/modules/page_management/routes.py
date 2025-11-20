@@ -44,7 +44,7 @@ async def create_page(
         logger_instance.info(f"Creating new page: {request.title} for user: {user_id}")
 
         # Create the page
-        result = page_service.create_page(
+        result = await page_service.create_page(
             user_id=user_id, title=request.title, content=request.content
         )
 
@@ -84,7 +84,7 @@ WWDC
         user_id = req.state.user_id
         logger_instance.info(f"Retrieving all pages for user: {user_id}")
 
-        result = page_service.get_all_pages(user_id=user_id)
+        result = await page_service.get_all_pages(user_id=user_id)
 
         if "error" in result:
             logger_instance.error(f"Failed to retrieve pages: {result['error']}")
@@ -124,7 +124,7 @@ async def get_page(page_id: str, req: Request) -> GetPageResponse:
         user_id = req.state.user_id
         logger_instance.info(f"Retrieving page with ID: {page_id} for user {user_id}")
 
-        result = page_service.get_page(page_id, user_id=user_id)
+        result = await page_service.get_page(page_id, user_id=user_id)
 
         if result is None:
             raise HTTPException(
@@ -179,7 +179,7 @@ async def update_page(
         logger_instance.info(f"Updating page with ID: {page_id} for user {user_id}")
 
         # Update the page
-        result = page_service.update_page(
+        result = await page_service.update_page(
             page_id=page_id,
             user_id=user_id,
             title=request.title,
@@ -230,7 +230,7 @@ async def delete_page(page_id: str, req: Request) -> DeletePageResponse:
         logger_instance.info(f"Deleting page with ID: {page_id} for user {user_id}")
 
         # Delete the page
-        result = page_service.delete_page(page_id, user_id=user_id)
+        result = await page_service.delete_page(page_id, user_id=user_id)
 
         # Check if there was an error during deletion
         if "error" in result:

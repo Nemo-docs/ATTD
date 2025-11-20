@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         # Ping the database to verify connection
-        mongodb_client.admin.command("ping")
+        await mongodb_client.admin.command("ping")
         logger_instance.info("MongoDB connection validated successfully")
 
         # Postgres init and connectivity check

@@ -2,7 +2,8 @@ import uuid
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime
-from core.clients import open_router_client, mongodb_client
+from core.clients import mongodb_client
+from core.llm_clients import llm_client
 from core.config import settings
 from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
@@ -21,7 +22,7 @@ class ChatQaService:
     def __init__(self):
         self.logger = logger_instance
         self.max_tokens = 4000  # Reasonable limit for chat responses
-        self.default_model = "openai/gpt-4o-mini"  # Fast and capable model
+        self.default_model = "gpt-4o-mini"  # Fast and capable model
         # Initialize AutoGenerationService for fetching project intros by repo hash.
         try:
             self.auto_service = AutoGenerationService()
@@ -31,7 +32,7 @@ class ChatQaService:
             self.logger.error(f"AutoGenerationService unavailable: {e}")
             self.auto_service = None
 
-    def generate_response(
+    async def generate_response(
         self,
         message: str,
         conversation_id: Optional[str] = None,
@@ -61,7 +62,7 @@ class ChatQaService:
             project_context = None
             if repo_hash and getattr(self, "auto_service", None):
                 try:
-                    intro_data = self.auto_service.get_project_intro_by_hash(repo_hash)
+                    intro_data = await self.auto_service.get_project_intro_by_hash(repo_hash)
                     if intro_data and isinstance(intro_data, dict):
                         project_context = {
                             "project_intro": intro_data.get("project_intro", ""),
@@ -137,7 +138,7 @@ class ChatQaService:
 
             # Persist chat to database (best-effort, do not fail on DB errors)
             try:
-                self.save_chat_to_db(response_data)
+                await self.save_chat_to_db(response_data)
             except Exception as e:
                 self.logger.error(f"Failed to save chat to DB: {e}")
 
@@ -156,7 +157,7 @@ class ChatQaService:
                 "user_id": user_id,
             }
 
-    def route_request(self, request: Any, user_id: Optional[str] = None) -> Dict[str, Any]:
+    async def route_request(self, request: Any, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Route an incoming chat request to the appropriate handler.
 
@@ -227,7 +228,7 @@ class ChatQaService:
                 f"User message:\n```\n{message}\n```"
             )
 
-            analysis_resp = open_router_client.chat.completions.create(
+            analysis_resp = llm_client.chat.completions.create(
                 model=self.default_model,
                 messages=[
                     {
@@ -290,7 +291,7 @@ class ChatQaService:
             self.logger.error(f"Error in route_request: {str(e)}")
             return {"error": str(e), "id": str(uuid.uuid4())}
 
-    def _handle_agentic_request(
+    async def _handle_agentic_request(
         self,
         message: str,
         conversation_id: Optional[str] = None,
@@ -330,7 +331,7 @@ class ChatQaService:
         #     message=result, model=self.default_model, diagram_mode=diagram_mode
         # )
         try:
-            project_context = self.auto_service.get_project_intro_by_hash(repo_hash)
+            project_context = await self.auto_service.get_project_intro_by_hash(repo_hash)
             project_intro = project_context.get("project_intro", "")
             project_data_flow_diagram = project_context.get(
                 "project_data_flow_diagram", ""
@@ -396,7 +397,7 @@ class ChatQaService:
 
             # Persist chat to database (best-effort)
             try:
-                self.save_chat_to_db(response_data)
+                await self.save_chat_to_db(response_data)
             except Exception as e:
                 self.logger.error(f"Failed to save agentic chat to DB: {e}")
 
@@ -415,7 +416,7 @@ class ChatQaService:
                 "user_id": user_id,
             }
 
-    def create_conversation(
+    async def create_conversation(
         self,
         title: Optional[str] = None,
         page_id: Optional[str] = None,
@@ -452,7 +453,7 @@ class ChatQaService:
 
             # Persist conversation to DB (best-effort)
             try:
-                self.save_conversation_to_db(conversation_data)
+                await self.save_conversation_to_db(conversation_data)
             except Exception as e:
                 self.logger.error(f"Failed to save conversation to DB: {e}")
 
@@ -463,7 +464,7 @@ class ChatQaService:
             self.logger.error(f"Error creating conversation: {str(e)}")
             return {"error": str(e)}
 
-    def save_chat_to_db(self, chat: Dict[str, Any]) -> None:
+    async def save_chat_to_db(self, chat: Dict[str, Any]) -> None:
         """Persist a chat entry to MongoDB and update conversation counters.
 
         This is best-effort and will not raise on DB errors; callers should
@@ -486,13 +487,13 @@ class ChatQaService:
 
         doc = model.dict()
         # Let MongoDB set its own _id while storing our id
-        coll.insert_one(doc)
+        await coll.insert_one(doc)
 
         # If this chat belongs to a conversation, increment its message count
         conv_id = chat.get("conversation_id")
         if conv_id:
             conv_coll = mongodb_client[db_name]["chat_conversations"]
-            conv_coll.update_one(
+            await conv_coll.update_one(
                 {"id": conv_id},
                 {
                     "$inc": {"message_count": 1},
@@ -504,7 +505,7 @@ class ChatQaService:
                 upsert=True,
             )
 
-    def get_conversations(self, user_id: Optional[str] = None) -> list[Dict[str, Any]]:
+    async def get_conversations(self, user_id: Optional[str] = None) -> list[Dict[str, Any]]:
         """Return a list of conversations filtered by user_id.
 
         Returns a list of conversation dicts suitable for returning from an API.
@@ -519,7 +520,10 @@ class ChatQaService:
 
         # Note: user_id is not currently stored on conversations; if needed,
         # the schema and save_conversation_to_db should be extended to include it.
-        docs = list(coll.find(query).sort("updated_at", -1))
+        cursor = coll.find(query).sort("updated_at", -1)
+        docs = []
+        async for d in cursor:
+            docs.append(d)
 
         # Convert ObjectId and datetimes to serializable dicts (Pydantic will
         # coerce datetimes when returned by FastAPI, so returning raw docs is OK
@@ -547,7 +551,7 @@ class ChatQaService:
 
         return results
 
-    def get_conversation_messages(
+    async def get_conversation_messages(
         self, conversation_id: str, user_id: Optional[str] = None
     ) -> list[Dict[str, Any]]:
         """Return all chat messages for a given conversation id ordered by created_at."""
@@ -557,11 +561,12 @@ class ChatQaService:
         if not user_id:
             raise ValueError("user_id is required to fetch conversation messages")
 
-        docs = list(
-            coll.find({"conversation_id": conversation_id, "user_id": user_id}).sort(
-                "created_at", 1
-            )
+        cursor = coll.find({"conversation_id": conversation_id, "user_id": user_id}).sort(
+            "created_at", 1
         )
+        docs = []
+        async for d in cursor:
+            docs.append(d)
 
         results = []
         for d in docs:
@@ -582,7 +587,7 @@ class ChatQaService:
 
         return results
 
-    def save_conversation_to_db(self, conversation: Dict[str, Any]) -> None:
+    async def save_conversation_to_db(self, conversation: Dict[str, Any]) -> None:
         """Persist or update a conversation document in MongoDB.
 
         Uses upsert so creating a conversation is idempotent.
@@ -598,7 +603,7 @@ class ChatQaService:
         )
 
         doc = model.dict()
-        coll.update_one({"id": model.id}, {"$set": doc}, upsert=True)
+        await coll.update_one({"id": model.id}, {"$set": doc}, upsert=True)
 
     def _generate_chat_response(
         self, message: str, diagram_mode: bool = False
@@ -656,7 +661,7 @@ Learning - Do not use parentheses '()' in the diagram code.
 Always aim to be maximally helpful while being truthful about your limitations."""
 
             # Call OpenRouter API
-            response = open_router_client.chat.completions.create(
+            response = llm_client.chat.completions.create(
                 model="anthropic/claude-3.7-sonnet",
                 messages=[
                     {"role": "system", "content": system_prompt},

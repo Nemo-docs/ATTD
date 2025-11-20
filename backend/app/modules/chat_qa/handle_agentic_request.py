@@ -5,7 +5,7 @@ from core.logger import logger_instance
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from core.clients import open_router_client
+from core.llm_clients import llm_client
 from app.modules.auto_generation.service import AutoGenerationService
 
 
@@ -208,8 +208,8 @@ def call_llm(msgs):
 
     for attempt in range(1, max_retries + 1):
         try:
-            resp = open_router_client.chat.completions.create(
-                model="openai/gpt-5-mini",
+            resp = llm_client.chat.completions.create(
+                model="gpt-5-mini",
                 tools=TOOLS,
                 messages=system_prompt + msgs,
             )

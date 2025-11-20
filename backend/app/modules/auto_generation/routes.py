@@ -35,7 +35,7 @@ async def generate_project_intro(
         logger_instance.info(f"Generating intro for repository: {request.repo_path}")
 
         # Generate the project intro
-        result = auto_gen_service.generate_intro(request.repo_path)
+        result = await auto_gen_service.generate_intro(request.repo_path)
 
         # Check if there was an error during generation
         if "error" in result:
@@ -81,7 +81,7 @@ async def get_project_intro(repo_hash: str) -> Dict:
     try:
         logger_instance.info(f"Retrieving project intro for hash: {repo_hash}")
 
-        result = auto_gen_service.get_project_intro_by_hash(repo_hash)
+        result = await auto_gen_service.get_project_intro_by_hash(repo_hash)
 
         if result is None:
             raise HTTPException(
@@ -123,7 +123,7 @@ async def get_project_intro_by_path(repo_path: str) -> Dict:
     try:
         logger_instance.info(f"Retrieving project intro for path: {repo_path}")
 
-        result = auto_gen_service.get_project_intro(repo_path)
+        result = await auto_gen_service.get_project_intro(repo_path)
 
         if result is None:
             raise HTTPException(
@@ -165,7 +165,7 @@ async def delete_project_intro(repo_path: str) -> Dict:
     try:
         logger_instance.info(f"Deleting project intro for path: {repo_path}")
 
-        success = auto_gen_service.delete_project_intro(repo_path)
+        success = await auto_gen_service.delete_project_intro(repo_path)
 
         if not success:
             raise HTTPException(
@@ -204,7 +204,7 @@ async def delete_project_intro_by_hash(repo_hash: str) -> Dict:
         logger_instance.info(f"Deleting project intro for hash: {repo_hash}")
 
         # Use the service's database operations
-        success = auto_gen_service._delete_project_intro(repo_hash)
+        success = await auto_gen_service._delete_project_intro(repo_hash)
 
         if not success:
             raise HTTPException(
@@ -230,7 +230,7 @@ async def delete_project_intro_by_hash(repo_hash: str) -> Dict:
 @router.get("/definitions/{repo_hash}")
 async def get_definitions(repo_hash: str, req: Request, parse_definitions: ParseDefinitionsService = Depends(ParseDefinitionsService)) -> List[Dict]:
     try:
-        definitions = parse_definitions.get_all_node_short_info(repo_hash)
+        definitions = await parse_definitions.get_all_node_short_info(repo_hash)
         return definitions
     except Exception as e:
         logger_instance.error(f"Unexpected error in get_definitions: {str(e)}")

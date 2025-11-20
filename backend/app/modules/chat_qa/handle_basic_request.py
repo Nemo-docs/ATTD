@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict
 import json
-from core.clients import open_router_client
+from core.llm_clients import llm_client
 from core.config import settings
 from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
@@ -95,8 +95,8 @@ def call_llm(msgs: List):
 
     for attempt in range(1, max_retries + 1):
         try:
-            resp = open_router_client.chat.completions.create(
-                model="openai/gpt-5-mini",
+            resp = llm_client.chat.completions.create(
+                model="gpt-5-mini",
                 tools=TOOLS,
                 messages=system_prompt + msgs,
             )

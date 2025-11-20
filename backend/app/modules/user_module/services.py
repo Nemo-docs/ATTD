@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pymongo.collection import Collection
+from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.errors import PyMongoError
 
 from core.clients import mongodb_client
@@ -21,52 +21,60 @@ class UserService:
         database_name = settings.DB_NAME
         collection_name = "users"
         database = mongodb_client[database_name]
-        self.collection: Collection = database[collection_name]
+        self.collection: AsyncCollection = database[collection_name]
+        self._indexes_created = False
 
-        try:
-            self.collection.create_index("user_id", unique=True)
-        except PyMongoError as exc:
-            self.logger.error("Could not ensure unique index on user_id: %s", exc)
+    async def _ensure_indexes(self) -> None:
+        """Ensure indexes exist. Called lazily on first DB operation."""
+        if not self._indexes_created:
+            try:
+                await self.collection.create_index("user_id", unique=True)
+                self.logger.info("Created unique index on user_id")
+                self._indexes_created = True
+            except PyMongoError as exc:
+                self.logger.error("Could not ensure unique index on user_id: %s", exc)
 
-    def ensure_user(self, user_id: str) -> UserModel:
+    async def ensure_user(self, user_id: str) -> UserModel:
         """Return the user if it exists or create a new record."""
+        await self._ensure_indexes()
 
-        existing_user = self._find_user(user_id)
+        existing_user = await self._find_user(user_id)
         if existing_user:
             return existing_user
 
         user_model = UserModel(user_id=user_id)
         try:
-            self.collection.insert_one(user_model.dict())
+            await self.collection.insert_one(user_model.dict())
         except PyMongoError as exc:
             self.logger.error("Failed to insert user %s: %s", user_id, exc)
             raise
 
         return user_model
 
-    def get_user(self, user_id: str) -> Optional[UserModel]:
+    async def get_user(self, user_id: str) -> Optional[UserModel]:
         """Retrieve a user record by identifier."""
+        await self._ensure_indexes()
 
         try:
-            return self._find_user(user_id)
+            return await self._find_user(user_id)
         except PyMongoError as exc:
             self.logger.error("Failed to fetch user %s: %s", user_id, exc)
             raise
 
-    def _find_user(self, user_id: str) -> Optional[UserModel]:
+    async def _find_user(self, user_id: str) -> Optional[UserModel]:
         """Fetch a user document from the database."""
 
-        document = self.collection.find_one({"user_id": user_id})
+        document = await self.collection.find_one({"user_id": user_id})
         if not document:
             return None
 
         document.pop("_id", None)
         return UserModel(**document)
 
-    def _require_user(self, user_id: str) -> UserModel:
+    async def _require_user(self, user_id: str) -> UserModel:
         """Fetch and return a user, raising if it does not exist."""
 
-        user = self._find_user(user_id)
+        user = await self._find_user(user_id)
         if user is None:
             raise ValueError(f"User {user_id} not found")
         return user
