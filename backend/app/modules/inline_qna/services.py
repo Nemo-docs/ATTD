@@ -41,7 +41,7 @@ class InlineQnaService:
 
             # resolve definitions mentioned user's request
             if mentioned_definitions:
-                resolved_query = resolve_definations(query, mentioned_definitions, repo_hash) + "\n\n"
+                resolved_query = await resolve_definations(query, mentioned_definitions, repo_hash) + "\n\n"
 
             # Generate answer using OpenRouter
             answer = InlineAgents.answer_query(resolved_query=resolved_query)

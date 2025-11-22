@@ -180,10 +180,10 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
 # loop
 
 
-def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=None):
+async def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=None):
     """Run an agentic loop with file operation tools."""
 
-    project_document = auto_gen_service.get_project_intro_by_hash(repo_hash)
+    project_document = await auto_gen_service.get_project_intro_by_hash(repo_hash)
     project_context = {
         "intro": project_document["project_intro"],
         "cursory_explanation": project_document["project_cursory_explanation"],
@@ -233,8 +233,8 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
     return messages[-1]["content"]
 
 
-def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: str):
-    definations_full_info = parse_definations.get_all_node_full_info(repo_hash)
+async def resolve_definations(message, mentioned_definations: List[Dict], repo_hash: str):
+    definations_full_info = await parse_definations.get_all_node_full_info(repo_hash)
     additional_info = ""
     additional_info += f"""
     The following are the definitions of the mentioned code file, classes or functions mentioned in the user message:\n\n

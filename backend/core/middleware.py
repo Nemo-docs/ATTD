@@ -7,7 +7,7 @@ from clerk_backend_api.security.types import AuthenticateRequestOptions
 from utils.auth_redis import get_key_context
 
 # Define public paths that bypass authentication
-PUBLIC_PREFIXES = ("/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
+PUBLIC_PREFIXES = ("/api/autocompletion", "/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
 
 
 

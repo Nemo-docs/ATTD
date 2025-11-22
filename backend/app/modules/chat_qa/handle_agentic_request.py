@@ -92,11 +92,11 @@ def list_directory_tool(directory: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
-def get_project_intro_by_hash_tool(repo_hash: str) -> str:
+async def get_project_intro_by_hash_tool(repo_hash: str) -> str:
     """Get project introduction for a repository by its hash."""
     logger_instance.info(f"Getting project introduction by hash: {repo_hash}")
     try:
-        result = auto_gen_service.get_project_intro_by_hash(repo_hash)
+        result = await auto_gen_service.get_project_intro_by_hash(repo_hash)
         if result:
             logger_instance.info(
                 f"Successfully retrieved project introduction for hash {repo_hash}"
@@ -297,10 +297,10 @@ def get_tool_response(response, dir_path: str = None):
         }
 
 
-def run_agentic_loop(messages, max_iterations=10, repo_hash=None, dir_path=None):
+async def run_agentic_loop(messages, max_iterations=10, repo_hash=None, dir_path=None):
     """Run an agentic loop with file operation tools."""
 
-    project_context = auto_gen_service.get_project_intro_by_hash(repo_hash)
+    project_context = await auto_gen_service.get_project_intro_by_hash(repo_hash)
     project_context = f"""
     Project Introduction:
     {project_context["project_intro"]}
