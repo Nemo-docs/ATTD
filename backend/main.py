@@ -14,6 +14,7 @@ from app.modules.user_module.routes import router as user_router
 from app.modules.snippet_management.routes import router as snippet_router
 from app.modules.mcp_controller.routes import router as mcp_controller_router
 from app.modules.api_keys.routes import router as api_keys_router
+from app.modules.autocompletion.routes import router as autocompletion_router
 
 # no direct datetime usage in this module
 from contextlib import asynccontextmanager
@@ -127,6 +128,8 @@ app.include_router(api_keys_router, prefix="/api", tags=["api-keys"])
 # Include MCP controller routes
 app.include_router(mcp_controller_router, prefix="/api", tags=["mcp-controller"])
 
+# Include autocompletion routes
+app.include_router(autocompletion_router, prefix="/api", tags=["autocompletion"])
 
 # Define basic routes
 @app.get("/")

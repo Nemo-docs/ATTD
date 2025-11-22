@@ -54,6 +54,15 @@ interface SingleLineMarkdownBlockProps {
   onClose?: () => void;
   onPaste?: (e: React.ClipboardEvent) => void;
   onUndo?: () => void;
+
+  // Autocompletion integration
+  blockIndex?: number;
+  onCaretChange?: (info: { blockIndex: number; offset: number }) => void;
+  ghostSuggestion?: string | null;
+  onClearGhost?: () => void;
+  onAcceptGhost?: () => void;
+  onRejectGhost?: () => void;
+  onForceGhostTrigger?: () => void;
 }
 
 export function SingleLineMarkdownBlock({
@@ -79,6 +88,14 @@ export function SingleLineMarkdownBlock({
   onClose,
   onPaste,
   onUndo,
+  // New props for caret and ghost suggestion
+  blockIndex,
+  onCaretChange,
+  ghostSuggestion,
+  onClearGhost,
+  onAcceptGhost,
+  onRejectGhost,
+  onForceGhostTrigger,
 }: SingleLineMarkdownBlockProps) {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
@@ -90,12 +107,15 @@ export function SingleLineMarkdownBlock({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const ghostOverlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCheckingOverflow, setIsCheckingOverflow] = useState(false);
   const prevFocusedRef = useRef(false);
   const prevLoadingRef = useRef<boolean>(false);
-
-  // Sync overlay height with input/textarea height
+  const prevContentRef = useRef(content);
+  const [ghostExtraHeight, setGhostExtraHeight] = useState(0);
+  
+  // Sync overlay heights and compute ghost extra height
   useEffect(() => {
     if (inputRef.current && overlayRef.current) {
       if (inputRef.current instanceof HTMLTextAreaElement) {
@@ -106,7 +126,21 @@ export function SingleLineMarkdownBlock({
         overlayRef.current.style.height = `${inputRef.current.offsetHeight}px`;
       }
     }
-  }, [content, type]);
+    // Measure ghost overlay and reserve layout space to push blocks below
+    if (ghostSuggestion && inputRef.current && ghostOverlayRef.current) {
+      const inputHeight =
+        inputRef.current instanceof HTMLTextAreaElement
+          ? inputRef.current.scrollHeight
+          : inputRef.current.offsetHeight;
+      const overlayHeight = ghostOverlayRef.current.offsetHeight;
+      const extra = Math.max(overlayHeight - inputHeight, 0);
+      setGhostExtraHeight(extra);
+    } else {
+      setGhostExtraHeight(0);
+    }
+  }, [content, type, ghostSuggestion]);
+
+  // ghost overlay measurement handled above
 
   // Focus management - only reset cursor when focus state changes, not on content changes
   useEffect(() => {
@@ -261,14 +295,33 @@ export function SingleLineMarkdownBlock({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart || 0;
-
+  
+    // Emit caret position for page-level context
+    onCaretChange?.({
+      blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+      offset: cursorPosition,
+    });
+  
     onChange(value);
-
+  
+    // Auto-clear ghost suggestion on mismatch of typed character vs suggestion head
+    if (ghostSuggestion) {
+      const prev = prevContentRef.current || '';
+      const delta = value.length - prev.length;
+      if (delta === 1 && cursorPosition > 0) {
+        const typedChar = value[cursorPosition - 1];
+        const firstGhostChar = ghostSuggestion[0] ?? '';
+        if (firstGhostChar && typedChar !== firstGhostChar) {
+          onClearGhost?.();
+        }
+      }
+    }
+  
     // Check for @ mention (only if repoId and findMatches are provided)
     if (repoId && findMatches) {
       const textBeforeCursor = value.substring(0, cursorPosition);
       const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-
+  
       if (lastAtIndex !== -1) {
         const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
         // Check if there's text after @ and no space/newline
@@ -276,7 +329,7 @@ export function SingleLineMarkdownBlock({
           setMentionQuery(textAfterAt);
           setShowMentionDropdown(true);
           setSelectedMentionIndex(0);
-
+  
           // Calculate dropdown position
           if (containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
@@ -292,16 +345,16 @@ export function SingleLineMarkdownBlock({
         setShowMentionDropdown(false);
       }
     }
-
+  
     // Check for slash command only for non-command types
     if (type !== 'command') {
       const textBeforeCursor = value.substring(0, cursorPosition);
       const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
-
+  
       if (lastSlashIndex !== -1) {
         const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
         const isAtStart = lastSlashIndex === 0;
-
+  
         if (isAtStart && !textAfterSlash.includes('\n') && !textAfterSlash.includes(' ')) {
           // Show slash menu
           const filtered = SLASH_COMMANDS.filter(cmd =>
@@ -311,7 +364,7 @@ export function SingleLineMarkdownBlock({
           setFilteredCommands(filtered);
           setSelectedCommandIndex(0);
           setShowSlashMenu(true);
-
+  
           // Calculate menu position
           if (containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
@@ -327,6 +380,9 @@ export function SingleLineMarkdownBlock({
         setShowSlashMenu(false);
       }
     }
+  
+    // Update previous content snapshot
+    prevContentRef.current = value;
   };
 
   const insertCommand = (command: SlashCommand) => {
@@ -467,6 +523,34 @@ export function SingleLineMarkdownBlock({
     }
 
 
+    // Handle ghost suggestion acceptance/dismissal
+    if (type !== 'command' && ghostSuggestion) {
+      switch (e.key) {
+        case 'Tab': {
+          e.preventDefault();
+          const target = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
+          const caretOffset = target.selectionStart ?? 0;
+          const before = target.value.slice(0, caretOffset);
+          const after = target.value.slice(caretOffset);
+          const newContent = before + ghostSuggestion + after;
+          onChange(newContent);
+          // Move caret to end of inserted suggestion
+          requestAnimationFrame(() => {
+            const newOffset = before.length + ghostSuggestion.length;
+            inputRef.current?.setSelectionRange(newOffset, newOffset);
+          });
+          onAcceptGhost?.();
+          return;
+        }
+        case 'Escape': {
+          e.preventDefault();
+          onRejectGhost?.();
+          onClearGhost?.();
+          return;
+        }
+      }
+    }
+
     // Handle command-specific keys
     if (type === 'command') {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -500,6 +584,43 @@ export function SingleLineMarkdownBlock({
           onNavigateDown?.();
         }
         break;
+      case 'ArrowLeft':
+        // After browser updates caret, emit new caret position
+        requestAnimationFrame(() => {
+          const offset = inputRef.current?.selectionStart ?? target.selectionStart ?? 0;
+          onCaretChange?.({
+            blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+            offset,
+          });
+        });
+        break;
+      case 'ArrowRight':
+        requestAnimationFrame(() => {
+          const offset = inputRef.current?.selectionStart ?? target.selectionStart ?? 0;
+          onCaretChange?.({
+            blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+            offset,
+          });
+        });
+        break;
+      case 'Home':
+        requestAnimationFrame(() => {
+          const offset = inputRef.current?.selectionStart ?? 0;
+          onCaretChange?.({
+            blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+            offset,
+          });
+        });
+        break;
+      case 'End':
+        requestAnimationFrame(() => {
+          const offset = inputRef.current?.selectionStart ?? target.value.length;
+          onCaretChange?.({
+            blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+            offset,
+          });
+        });
+        break;
       case 'Enter':
         if (type !== 'command' && !e.shiftKey) {
           e.preventDefault();
@@ -519,6 +640,12 @@ export function SingleLineMarkdownBlock({
 
   const handleFocus = () => {
     onFocus?.();
+    // Emit caret on focus
+    const offset = inputRef.current?.selectionStart ?? content.length;
+    onCaretChange?.({
+      blockIndex: typeof blockIndex === 'number' ? blockIndex : 0,
+      offset,
+    });
   };
 
   const handleBlur = () => {
@@ -720,7 +847,7 @@ export function SingleLineMarkdownBlock({
     };
 
     return (
-      <div className="relative">
+      <div className="relative" style={{ paddingBottom: ghostExtraHeight }}>
         {/* Highlight overlay for headings and text */}
         {matchedMentions.length > 0 && highlightOverlay && (
           <>
@@ -738,7 +865,7 @@ export function SingleLineMarkdownBlock({
                 }
               `
             }} />
-            <div 
+            <div
               ref={overlayRef}
               className={cn("highlight-overlay-markdown", getOverlayClasses())}
               style={{
@@ -754,6 +881,44 @@ export function SingleLineMarkdownBlock({
             />
           </>
         )}
+
+        {/* Ghost suggestion overlay aligned to caret */}
+        {ghostSuggestion && (() => {
+          const caretOffset = inputRef.current?.selectionStart ?? content.length;
+
+          const escapeHtml = (text: string) =>
+            text
+              .replace(/&/g, '&')
+              .replace(/</g, '<')
+              .replace(/>/g, '>')
+              .replace(/"/g, '"')
+              .replace(/'/g, '&#039;');
+
+          const prefix = escapeHtml(content.substring(0, caretOffset));
+          const suffix = escapeHtml(content.substring(caretOffset));
+          const ghost = escapeHtml(ghostSuggestion);
+
+          const html =
+            `<span style="color: transparent">${prefix}</span>` +
+            `<span style="color: rgba(125,125,125,0.65)">${ghost}</span>` +
+            `<span style="color: transparent">${suffix}</span>`;
+
+          return (
+            <div
+              ref={ghostOverlayRef}
+              className={cn("ghost-overlay", getOverlayClasses())}
+              style={{
+                zIndex: 20,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+              }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
+        })()}
+
         <Input
           {...commonProps}
           className={cn(commonProps.className, getInputHeight(), "relative z-10")}
