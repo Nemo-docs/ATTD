@@ -234,7 +234,8 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 self.logger.info(f"Saved git_repo document for repo: {repo_hash}")
 
                 # Step 6: Convert to tree hierarchy
-                tree_output = self._create_tree_hierarchy(repo_path, file_roles)
+                repo_name = github_url.split("/")[-1].replace(".git", "")
+                tree_output = self._create_tree_hierarchy(repo_path, file_roles, repo_name)
                 # self.logger.info(f"Tree output: {tree_output}")
                 return tree_output
 
@@ -649,12 +650,12 @@ Return a JSON object where each key is a filename and each value is a brief desc
 
         return file_roles
 
-    def _create_tree_hierarchy(self, repo_path: str, file_roles: Dict[str, str]) -> str:
+    def _create_tree_hierarchy(self, repo_path: str, file_roles: Dict[str, str], repo_name: str) -> str:
         """Create a tree hierarchy string representation of file roles."""
         from collections import defaultdict
 
         # Normalize paths to be relative to repo_path
-        repo_name = os.path.basename(repo_path.rstrip(os.sep))
+        repo_hash = os.path.basename(repo_path.rstrip(os.sep))
         relative_files = {}
 
         for full_path, description in file_roles.items():

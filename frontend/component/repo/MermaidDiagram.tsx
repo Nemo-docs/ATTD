@@ -188,13 +188,17 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
         fontFamily: '"Geist Mono", monospace',
         flowchart: {
           useMaxWidth: !fullSize,
-          htmlLabels: true
+          htmlLabels: true,
+          curve: 'basis',
+          diagramPadding: 20,
+          nodeSpacing: 60,
+          rankSpacing: 100
         },
         themeVariables: {
           primaryColor: '#262626',
           primaryTextColor: '#ffffff',
           primaryBorderColor: '#404040',
-          lineColor: '#666666',
+          lineColor: '#a0a0a0',
           secondaryColor: '#1b1b1b',
           tertiaryColor: '#333333'
         }

@@ -24,6 +24,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "argon2-cffi>=25.1.0",
     "redis>=7.0.1",
+    "mermaid-py>=0.8.0",
 ]
 
 [dependency-groups]

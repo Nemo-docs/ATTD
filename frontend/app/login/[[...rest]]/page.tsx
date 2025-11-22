@@ -81,7 +81,7 @@ export default function LoginPage() {
     <div 
       className="min-h-screen flex items-center justify-center px-4 py-12 text-white relative"
       style={{ 
-        backgroundImage: "url('/login_4_bg_screen.jpg')",
+        backgroundImage: "url('/login_12_bg_screen.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -89,7 +89,7 @@ export default function LoginPage() {
     >
       {/* Dark overlay */}
       <div className="absolute inset-0" />
-      <div className="w-full max-w-md relative z-10 backdrop-blur-md">
+      <div className="w-full max-w-md relative rounded-[26px] z-10 backdrop-blur-md">
         <div className="overflow-hidden rounded-[26px] px-6 py-8 shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
           {/* Tab Navigation */}
           <div className="flex gap-2 rounded-lg  p-1 mb-6">
