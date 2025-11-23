@@ -126,7 +126,7 @@ def call_llm(msgs: List):
     raise last_exception
 
 
-def get_tool_response(response, project_context: str = None, repo_hash: str = None, repo_symbols: List[Dict] = None):
+def get_tool_response(tool_call,project_context: str = None, repo_hash: str = None, repo_symbols: List[Dict] = None):
     """Execute a tool call returned by the LLM.
 
     Args:
@@ -135,7 +135,7 @@ def get_tool_response(response, project_context: str = None, repo_hash: str = No
         repo_hash: Optional repo hash.
         repo_symbols: Optional repo symbols.
     """
-    tool_call = response.choices[0].message.tool_calls[0]
+    # tool_call = response.choices[0].message.tool_calls[0]
     tool_name = tool_call.function.name
     tool_args = json.loads(tool_call.function.arguments)
 
@@ -217,11 +217,12 @@ def run_basic_agentic_loop(messages, max_iterations=MAX_ITERATIONS, repo_hash=No
 
         if resp.choices[0].message.tool_calls is not None:
             logger_instance.info("Tool calls detected, executing tools")
-            messages.append(
-                get_tool_response(
-                    resp, project_context=project_context, repo_hash=repo_hash, repo_symbols=repo_symbols
+            for tool_call in resp.choices[0].message.tool_calls:
+                messages.append(
+                    get_tool_response(
+                        tool_call, project_context=project_context, repo_hash=repo_hash, repo_symbols=repo_symbols
+                    )
                 )
-            )
         else:
             logger_instance.info("No tool calls detected, ending loop")
             break
