@@ -2,23 +2,25 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { pageApi } from "../../../../../lib/api";
-import { Page } from "../../../../../types/page";
+import { pageApi } from "@/lib/api";
+import { Page } from "@/types/page";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { SingleLineMarkdownBlock, BlockType } from '../../../../../component/chat/SingleLineMarkdownBlock';
-import { useDefinitions } from '../../../../../hooks/useDefinitions';
-import { useAutoSave } from '../../../../../hooks/pageHooks/useAutoSave';
-import { useBlockManagement } from '../../../../../hooks/pageHooks/useBlockManagement';
-import { useCommandHandling } from '../../../../../hooks/pageHooks/useCommandHandling';
-import { useBlockSelection } from '../../../../../hooks/pageHooks/useBlockSelection';
-import { usePageMermaid } from '../../../../../hooks/pageHooks/usePageMermaid';
-import { parseContentToBlocks, blocksToContent, htmlToMarkdown } from '../../../../../component/editor/blockUtils';
-import { Block } from '../../../../../types/page-editor';
-import { useUndoRedo } from '../../../../../hooks/pageHooks/useUndoRedo';
-import { usePageData } from '../../../../../hooks/pageHooks/usePageData';
-import { useKeyboardShortcuts } from '../../../../../hooks/pageHooks/useKeyboardShortcuts';
-import { usePasteHandler } from '../../../../../hooks/pageHooks/usePasteHandler';
+import { SingleLineMarkdownBlock, BlockType } from '@/component/chat/SingleLineMarkdownBlock';
+import { useDefinitions } from '@/hooks/useDefinitions';
+import { useAutoSave } from '@/hooks/pageHooks/useAutoSave';
+import { useBlockManagement } from '@/hooks/pageHooks/useBlockManagement';
+import { useCommandHandling } from '@/hooks/pageHooks/useCommandHandling';
+import { useBlockSelection } from '@/hooks/pageHooks/useBlockSelection';
+import { usePageMermaid } from '@/hooks/pageHooks/usePageMermaid';
+import { parseContentToBlocks, blocksToContent, htmlToMarkdown } from '@/component/editor/blockUtils';
+import { Block } from '@/types/page-editor';
+import { useUndoRedo } from '@/hooks/pageHooks/useUndoRedo';
+import { usePageData } from '@/hooks/pageHooks/usePageData';
+import { useKeyboardShortcuts } from '@/hooks/pageHooks/useKeyboardShortcuts';
+import { usePasteHandler } from '@/hooks/pageHooks/usePasteHandler';
+import { useAutocompletion } from '@/hooks/pageHooks/useAutocompletion';
+
 
 export default function PageView() {
   const params = useParams();
@@ -32,6 +34,9 @@ export default function PageView() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   // Extend pendingReplacement type implicitly with isInitial and commandBlockIndex
   const [pendingReplacement, setPendingReplacement] = useState<{ insertIndex: number; selectedIndices: number[]; selectedContent: string; isInitial?: boolean; commandBlockIndex?: number; } | null>(null);
+
+  // Caret position for autocompletion (block-local offset)
+  const [caretInfo, setCaretInfo] = useState<{ blockIndex: number; offset: number } | null>(null);
 
   // Custom hooks
   const {
@@ -239,9 +244,18 @@ export default function PageView() {
 
   // Initialize auto-save
   useAutoSave(currentPage, blocks, setHasUnsavedChanges);
-
+  
   // Initialize mermaid rendering
   usePageMermaid(blocks);
+
+  // Autocompletion suggestion hook (headings/text only)
+  const { suggestion, inFlight, clearSuggestion, markRejected } = useAutocompletion({
+    blocks,
+    caretInfo,
+    focusedBlockIndex,
+    enabledTypes: ['h1', 'h2', 'h3', 'text'],
+    debounceMs: 300,
+  });
 
   useEffect(() => {
     if (currentPage) {
@@ -405,6 +419,15 @@ export default function PageView() {
                       className={getMarginClass(block.type)}
                       repoId={repoId}
                       findMatches={findMatches}
+
+                      // Autocompletion caret and ghost props
+                      blockIndex={index}
+                      onCaretChange={(info) => setCaretInfo(info)}
+                      ghostSuggestion={focusedBlockIndex === index ? (suggestion ?? null) : null}
+                      onClearGhost={() => clearSuggestion()}
+                      onAcceptGhost={() => clearSuggestion()}
+                      onRejectGhost={() => { markRejected(); }}
+
                       onCommandSubmit={block.type === 'command' ? (typedValue) => {
                         console.log('onCommandSubmit', { blockId: block.id, index, typedValuePreview: typedValue.substring(0, 50) + '...' });
                         const userQuery = typedValue;

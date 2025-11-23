@@ -1,6 +1,7 @@
 # from openai import OpenAI
 from types import SimpleNamespace
 from langfuse.openai import openai
+from langfuse.openai import AsyncOpenAI
 from core.config import settings
 
 
@@ -17,7 +18,11 @@ _open_router_client = openai.OpenAI(
     api_key=settings.OPENROUTER_API_KEY,
 )
 
+# Initialize Azure OpenAI Async Client
+async_azure_client = AsyncOpenAI(base_url=settings.AZURE_API_BASE, api_key=settings.AZURE_API_KEY)
 
+# For async direct OpenRouter usage
+async_OR_client = AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY)
 
 class UnifiedLLMClient:
     """
@@ -25,7 +30,7 @@ class UnifiedLLMClient:
     (Azure or OpenRouter) based on the model name.
     """
     
-    AZURE_MODELS = {"gpt-5", "gpt-5-mini", "gpt-4o-mini"}
+    AZURE_MODELS = {"gpt-5", "gpt-5-mini", "gpt-4o-mini", "gpt-5-nano"}
     
     def __init__(self, azure_client: openai.OpenAI, openrouter_client: openai.OpenAI):
         self._azure_client = azure_client

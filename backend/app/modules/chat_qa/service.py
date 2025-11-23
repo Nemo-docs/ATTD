@@ -255,8 +255,8 @@ class ChatQaService:
 
             # if requires_repo_context and think_level == "simple":
                 # Forward to the full generator which can use repo context
-            message = resolve_definations(message, mentioned_definations, repo_hash)
-            ans = run_basic_agentic_loop(
+            message = await resolve_definations(message, mentioned_definations, repo_hash)
+            ans = await run_basic_agentic_loop(
                 [{"role": "user", "content": message}],
                 repo_hash=repo_hash,
             )
@@ -320,7 +320,7 @@ class ChatQaService:
             os.makedirs(repo_path, exist_ok=True)
             download_and_extract_zip(repo_hash, repo_path + ".zip", repo_path)
 
-        result = run_agentic_loop(
+        result = await run_agentic_loop(
             [{"role": "user", "content": message}],
             max_iterations=10,
             repo_hash=repo_hash,
