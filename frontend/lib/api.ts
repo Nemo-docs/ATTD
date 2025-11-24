@@ -4,6 +4,7 @@ import { Page, CreatePageRequest, UpdatePageRequest } from '../types/page';
 import { InlineQnaRequest, InlineQnaResponse } from '../types/inline-qna';
 import { ChatRequest, ChatResponse } from '../types/chat';
 import { ChatQaRequest, ChatQaResponse, ChatConversationRequest, ChatConversationResponse } from '@/types/chat-qa';
+import { ProjectIntro } from '@/types/repo';
 
 const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://localhost:8000';
 
@@ -221,17 +222,8 @@ export const repoApi = {
   },
 
   // Retrieve repository metadata by repo hash
-  getRepo: async (repoHash: string): Promise<
-    {
-      repo_hash: string;
-      project_intro?: string | null;
-      project_data_flow_diagram?: string | null;
-      project_cursory_explanation?: string | null;
-      github_url?: string | null;
-      name?: string | null;
-    }
-  > => {
-    return apiRequest(`/git-repo/${encodeURIComponent(repoHash)}`);
+  getRepo: async (repoHash: string): Promise<ProjectIntro> => {
+    return apiRequest<ProjectIntro>(`/git-repo/${encodeURIComponent(repoHash)}`);
   },
 
   // Update repository from GitHub

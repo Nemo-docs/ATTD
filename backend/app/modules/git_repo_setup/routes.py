@@ -19,6 +19,14 @@ async def create_git_repo(payload: CreateGitRepoRequest):
         logger_instance.info(f"Creating git repo for URL: {payload.github_url}")
         intro_result = await git_repo_setup_service.clone_repo_to_disk(str(payload.github_url))
         logger_instance.info(f"Cloned repo to disk: {intro_result}")
+        
+        # Check for errors before returning
+        if isinstance(intro_result, dict) and "error" in intro_result:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=intro_result["error"],
+            )
+        
         # parsing and saving new definitions to db (do not overwrite intro_result)
         parse_result = await git_repo_setup_service.parse_and_save_definitions(repo_url=str(payload.github_url))
         logger_instance.info(f"Parsed and saved definitions to db: {parse_result}")

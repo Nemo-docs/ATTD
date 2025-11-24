@@ -1,4 +1,5 @@
 import type { Components } from 'react-markdown';
+import MermaidDiagram from '@/component/repo/MermaidDiagram';
 
 /**
  * Provides custom styled components for react-markdown.
@@ -16,13 +17,23 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
     const match = /language-(\w+)/.exec(className || '');
     const lang = match?.[1];
 
-    // Mermaid diagrams - render as special div for client-side processing
+    // Mermaid diagrams - render using MermaidDiagram component
     if (!inline && lang === 'mermaid') {
+      let diagramCode = Array.isArray(children) ? children.join('\n') : String(children || '');
+      // Strip any potential markdown fence markers to ensure clean diagram code
+      diagramCode = diagramCode
+        .trim()
+        .replace(/^```mermaid\s*\n?/, '')
+        .replace(/\n?```\s*$/, '')
+        .trim();
       return (
-        <div className="overflow-x-auto">
-          <div className="mermaid-diagram">
-            {Array.isArray(children) ? children.join('') : children}
-          </div>
+        <div className="my-4">
+          <MermaidDiagram 
+            diagram={diagramCode} 
+            title="Embedded Diagram" 
+            fullSize={false} 
+            enableDialog={true}
+          />
         </div>
       );
     }

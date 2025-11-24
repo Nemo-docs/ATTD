@@ -2,6 +2,7 @@ import concurrent.futures
 import tiktoken
 import os
 import hashlib
+import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from pymongo.asynchronous.collection import AsyncCollection
@@ -10,10 +11,12 @@ from core.clients import mongodb_client
 from core.llm_clients import llm_client
 from core.config import settings
 from core.logger import logger_instance
-from app.modules.auto_generation.models import ProjectIntroModel
+from app.modules.auto_generation.models import ProjectIntroModel, ApplicationModel, LibraryModel, ServiceModel
 from utils.mermaid_generation_validation import MermaidGenerationValidator
 from app.modules.git_repo_setup.management_services import GitRepoManagementService
-
+from pydantic import BaseModel, Field
+from typing import Literal
+from app.modules.auto_generation.agents import P1Agent, P2Agent, P3Agent
 
 
 class AutoGenerationService:
@@ -64,7 +67,7 @@ class AutoGenerationService:
             self.logger.info(f"Checking if project intro exists for repo: {repo_hash}")
             existing_intro = await self._get_project_intro(repo_hash)
             
-            # Check if repo is updated
+            # # Check if repo is updated
             git_repo_updated = await self.git_repo_management_service.check_git_repo_updated(github_url)
             latest_commit_hash = git_repo_updated.get("latest_commit_hash")
 
@@ -72,19 +75,9 @@ class AutoGenerationService:
                 self.logger.info(f"Found existing intro for repo: {repo_hash}")
                 # Return existing data with additional metadata
                 return {
-                    "repo_path": existing_intro.get("repo_path"),
-                    "repo_hash": existing_intro.get("repo_hash"),
-                    "project_intro": existing_intro.get("project_intro"),
-                    "project_data_flow_diagram": existing_intro.get(
-                        "project_data_flow_diagram"
-                    ),
-                    "project_cursory_explanation": existing_intro.get(
-                        "project_cursory_explanation"
-                    ),
+                    **existing_intro,
                     "saved_to_db": True,
                     "retrieved_from_db": True,
-                    "created_at": existing_intro.get("created_at"),
-                    "updated_at": existing_intro.get("updated_at"),
                 }
 
             # Step 2: Generate new intro if not found in database
@@ -96,106 +89,119 @@ class AutoGenerationService:
             if cursory_explanation.startswith("Error:"):
                 return f"Error in generate_intro: {cursory_explanation}"
 
-            # Step 3: Analyze project structure and generate intro
-            intro_prompt = f"""Based on the following project structure and file descriptions, create a comprehensive introduction for this software project. Focus on what the project does, its purpose, and aim to be very technical.
+            # Define JSON schema for repo type classification
+            json_schema = {
+                "name": "repo_type",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "repo_type": {
+                            "type": "string",
+                            "enum": ["application", "library", "service"],
+                            "description": "The type of the repository: application, library, or service."
+                        }
+                    },
+                    "required": ["repo_type"],
+                    "additionalProperties": False,
+                }
+            }
+            response_format = {
+                "type": "json_schema",
+                "json_schema": json_schema
+            }
 
-Project Structure and File Roles:
-{cursory_explanation}
-
-Please provide:
-
-1. **Project Overview**: A 2-3 paragraph introduction explaining what this project does, its main purpose, and target users/audience.
-
-2. **Key Components**: Based on the file structure, identify the main components or modules and explain their roles at a high level.
-
-3. **Technology Stack**: Infer the technology stack from the file extensions and structure.
-
-4. **Project Goals**: What problems does this project solve?
-
-5. **Technical Details**: Assume the user is very technical and show the technical details of the project in short and concise manner.
-
-6. Wrap filenames in backticks (`` file ``). It improves readability and avoids mis-parsing.
-
-7. If a horizontal rule is desired, --- is fine, but ensure it's on a line by itself and not adjacent to list items (add a blank line above/below).
-
-Write markdown format with proper headings and subheadings.
-
-Format the response as a coherent introduction that someone unfamiliar with the codebase could understand. Be professional, clear, and engaging."""
-
-            # Step 4: Generate the introduction using OpenAI
-            intro_response = llm_client.chat.completions.create(
-                model="gpt-5-mini",
+            response = llm_client.chat.completions.create(
+                model="gpt-5.1-codex-mini",
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical writer who creates clear, engaging project introductions. Focus on the project's purpose and value rather than implementation details. Assume the user is very technical and show the technical details of the project in short and concise manner.",
+                        "content": "You are a classifier that determines the type of a software repository. The type must be exactly one of: 'application', 'library', or 'service'. Output your final answer as a JSON object: {\"repo_type\": \"your_classification\"}."
                     },
-                    {"role": "user", "content": intro_prompt},
+                    {
+                        "role": "user",
+                        "content": f"Application type repository generally have contains full runnable products, often includes frontend, backend, or mobile app code. Library or SDK repo provides reusable functions, utilities, or language specific SDKs for other apps. Service repositories are standalone backend service or microservice with its own API and logic. Classify this repository based on the following description: {cursory_explanation}"
+                    },
                 ],
+                response_format=response_format,
             )
+            repo_type = json.loads(response.choices[0].message.content)["repo_type"]
 
-            project_intro = intro_response.choices[0].message.content.strip()
+            # call P1Agent
+            p1_agent = P1Agent(cursory_explanation=cursory_explanation, repo_hash=repo_hash, repo_type=repo_type)
+            p1_response = await p1_agent.run()
+            # call P2Agent
+            p2_agent = P2Agent(cursory_explanation=cursory_explanation, repo_hash=repo_hash)
+            p2_response = await p2_agent.run()
+            # check fix mermaid code
+            p2_improved_response = await p2_agent.check_fix_mermaid_code(p2_response)
+            # call P3Agent
+            p3_agent = P3Agent(cursory_explanation=cursory_explanation, repo_hash=repo_hash, repo_type=repo_type)
+            p3_response = await p3_agent.run()
 
-            # Step 5: Generate data flow diagram with validation loop
-            (
-                project_diagram,
-                validation_success,
-            ) = self.mermaid_validator.generate_mermaid_diagram(
-                cursory_explanation, max_iterations=10
-            )
-
-            if not validation_success:
-                self.logger.error(
-                    "Mermaid diagram validation failed after max iterations. "
-                    "Using generated diagram anyway."
-                )
-       
-            # Step 6: Create project intro model and save to database
-            
-            # if exists fetch the existing one, update fields and save 
-            if existing_intro:
-                existing_intro.update({
-                    "project_intro": project_intro,
-                    "project_data_flow_diagram": project_diagram,
-                    "project_cursory_explanation": cursory_explanation,
-                    "updated_at": datetime.utcnow(),
-                })
-                project_intro_model = ProjectIntroModel(**existing_intro)
-
-            else:
+            # save to database
+            if repo_type == "application":
                 project_intro_model = ProjectIntroModel(
                     repo_path=settings.PARENT_DIR + "/" + repo_hash,
                     repo_hash=repo_hash,
-                    project_intro=project_intro,
-                    project_data_flow_diagram=project_diagram,
-                    project_cursory_explanation=cursory_explanation,
+                    repo_type=repo_type,
+                    repo_info=ApplicationModel(
+                        overview=p1_response.get("overview", ""),
+                        setup_and_installation=p1_response.get("setup_and_installation", ""),
+                        testing=p1_response.get("testing", ""),
+                        p2_info=p2_improved_response,
+                        p3_info=p3_response,
+                    ),
+                    cursory_explanation=cursory_explanation,
                     github_url=github_url,
                     name=name,
                 )
-
-            # Convert to dict for database storage
-            project_data = project_intro_model.dict()
-
-            # Save to database
-            self.logger.info(f"Saving project intro to database for repo: {repo_hash}")
-            save_success = await self._save_project_intro(project_data)
-
-            if not save_success:
-                self.logger.error(
-                    f"Failed to save project intro to database for repo: {repo_hash}"
+            elif repo_type == "library":
+                project_intro_model = ProjectIntroModel(
+                    repo_path=settings.PARENT_DIR + "/" + repo_hash,
+                    repo_hash=repo_hash,
+                    repo_type=repo_type,
+                    repo_info=LibraryModel(
+                        purpose=p1_response.get("purpose", ""),
+                        installation=p1_response.get("installation", ""),
+                        quick_start_examples=p1_response.get("quick_start_examples", []),
+                        p2_info=p2_improved_response,
+                        p3_info=p3_response,
+                    ),
+                    cursory_explanation=cursory_explanation,
+                    github_url=github_url,
+                    name=name,
                 )
+            elif repo_type == "service":
+                project_intro_model = ProjectIntroModel(
+                    repo_path=settings.PARENT_DIR + "/" + repo_hash,
+                    repo_hash=repo_hash,
+                    repo_type=repo_type,
+                    repo_info=ServiceModel(
+                        service_description=p1_response.get("service_description", ""),
+                        running_locally=p1_response.get("running_locally", ""),
+                        p2_info=p2_improved_response,
+                        p3_info=p3_response,
+                    ),
+                    cursory_explanation=cursory_explanation,
+                    github_url=github_url,
+                    name=name,
+                )
+            else:
+                raise ValueError(f"Unsupported repo_type: {repo_type}")
 
-            # Return the generated data
-            result_data = {
-                "repo_hash": project_intro_model.repo_hash,
-                "project_intro": project_intro,
-                "project_data_flow_diagram": project_diagram,
-                "project_cursory_explanation": cursory_explanation,
-                "saved_to_db": save_success,
-            }
+            # save to database
+            project_data = project_intro_model.dict()
+            save_success = await self._save_project_intro(project_data)
+            if not save_success:
+                self.logger.error(f"Failed to save project intro to database for repo: {repo_hash}")
+                raise ValueError(f"Failed to save project intro to database for repo: {repo_hash}")
 
-            self.logger.info(f"Generated intro successfully for repo: {repo_hash}")
-            return result_data
+            # Add metadata flags for consistency
+            project_data["saved_to_db"] = True
+            project_data["retrieved_from_db"] = False  # Newly generated, not retrieved
+
+            return project_data
 
         except Exception as e:
             self.logger.error(f"Error generating intro: {str(e)}")
@@ -210,7 +216,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
             repo_path = settings.PARENT_DIR + "/" + repo_hash
 
             repo_data = await self.git_repo_management_service.get_updated_repo_by_hash(repo_hash)
-
+            repo_name = github_url.split("/")[-1].replace(".git", "")
             if repo_data.get("not_found"):
                 # Step 1: Get all files excluding common irrelevant directories
                 useful_files = self._get_useful_files(repo_path)
@@ -234,7 +240,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 self.logger.info(f"Saved git_repo document for repo: {repo_hash}")
 
                 # Step 6: Convert to tree hierarchy
-                repo_name = github_url.split("/")[-1].replace(".git", "")
+                
                 tree_output = self._create_tree_hierarchy(repo_path, file_roles, repo_name)
                 # self.logger.info(f"Tree output: {tree_output}")
                 return tree_output
@@ -276,7 +282,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 # Step 7: Convert to tree hierarchy using aggregated roles from updated repo model
                 updated_repo_model = update_result.get("updated_repo_model", repo_model) if isinstance(update_result, dict) else repo_model
                 all_roles = self.git_repo_management_service.get_all_role_map(updated_repo_model, repo_path)
-                tree_output = self._create_tree_hierarchy(repo_path, all_roles)
+                tree_output = self._create_tree_hierarchy(repo_path, all_roles, repo_name)
                 # self.logger.info(f"Tree output: {tree_output}")
                 return tree_output
             else:
@@ -286,7 +292,7 @@ Format the response as a coherent introduction that someone unfamiliar with the 
                 self.logger.info(f"Repo unchanged for {repo_hash}. Building tree from stored roles.")
                 all_roles = self.git_repo_management_service.get_all_role_map(repo_model, repo_path)
                 self.logger.info(f"Aggregated roles count: {len(all_roles)}")
-                tree_output = self._create_tree_hierarchy(repo_path, all_roles)
+                tree_output = self._create_tree_hierarchy(repo_path, all_roles, repo_name)
                 return tree_output
 
         except Exception as e:

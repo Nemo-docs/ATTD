@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText } from "lucide-react";
+import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText, BookOpen, Target, Code2, RefreshCw } from "lucide-react";
 import { KeysModal } from "@/component/keys/KeysModal";
 import { pageApi, chatQaApi } from "@/lib/api";
 import { Page } from "@/types/page";
+import { repoApi } from "@/lib/api";
 
 export function SlidingSidebar() {
   const router = useRouter();
@@ -27,6 +28,8 @@ export function SlidingSidebar() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isKeysModalOpen, setIsKeysModalOpen] = useState(false);
+  const [repoData, setRepoData] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -51,10 +54,30 @@ export function SlidingSidebar() {
 
     fetchPages().catch(() => undefined);
 
+    if (isRepoRoute && repoId) {
+      const fetchRepoData = async () => {
+        try {
+          const data = await repoApi.getRepo(repoId!);
+          if (isActive) {
+            setRepoData(data);
+          }
+        } catch (error) {
+          console.error("Failed to load repo data:", error);
+          if (isActive) {
+            setRepoData({ error: "Failed to load repo data" });
+          }
+        }
+      };
+
+      fetchRepoData();
+    } else {
+      setRepoData(null);
+    }
+
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [isRepoRoute, repoId, repoApi]);
 
   const personalPages = useMemo(() => pages.slice(0, 20), [pages]);
 
@@ -105,6 +128,33 @@ export function SlidingSidebar() {
 
     const conversationId = generateConversationId();
     router.push(`/repo/${repoId}/conversation/${conversationId}`);
+  };
+
+  const handleUpdateRepository = async () => {
+    if (!repoData || "error" in repoData || !repoData.github_url) {
+      setChatError("Cannot update repository: data not available.");
+      return;
+    }
+
+    if (updating) return;
+
+    try {
+      setUpdating(true);
+      setChatError(null);
+
+      const result = await repoApi.updateRepo({ github_url: repoData.github_url });
+
+      // Refetch data
+      const newData = await repoApi.getRepo(repoId!);
+      setRepoData(newData);
+
+      console.log(result.up_to_date ? "Repository is up to date." : "Repository update initiated.");
+    } catch (error) {
+      console.error("Failed to update repository:", error);
+      setChatError("Failed to update repository. Please try again.");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const renderPersonalPages = () => {
@@ -163,7 +213,7 @@ export function SlidingSidebar() {
     <>
       {/* Left edge hover area */}
       <div
-        className="fixed left-0 top-0 z-50 h-full w-[50px]"
+        className="fixed left-0 top-0 z-50 h-full w-[20px]"
         onMouseEnter={() => setIsOpen(true)}
       />
 
@@ -211,19 +261,68 @@ export function SlidingSidebar() {
                   <button
                     onClick={() => {
                       if (!isRepoRoute) {
-                        setChatError("Open a repository to view its overview.");
+                        setChatError("Open a repository to view its getting started guide.");
                         return;
                       }
-                      router.push(`/repo/${repoId}`);
+                      router.push(`/repo/${repoId}/getting-started`);
                     }}
                     className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
-                      pathname === `/repo/${repoId}`
+                      pathname === `/repo/${repoId}/getting-started`
                         ? "bg-[#2a2a2a] text-white"
                         : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
                     }`}
                   >
-                    <Building2 className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}` ? "text-gray-300" : "text-gray-600"}`} />
-                    <span className="font-mono text-[14px]">Overview</span>
+                    <BookOpen className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}/getting-started` ? "text-gray-300" : "text-gray-600"}`} />
+                    <span className="font-mono text-[14px]">Getting Started</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!isRepoRoute) {
+                        setChatError("Open a repository to view core concepts.");
+                        return;
+                      }
+                      router.push(`/repo/${repoId}/core-concepts`);
+                    }}
+                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
+                      pathname === `/repo/${repoId}/core-concepts`
+                        ? "bg-[#2a2a2a] text-white"
+                        : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
+                    }`}
+                  >
+                    <Target className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}/core-concepts` ? "text-gray-300" : "text-gray-600"}`} />
+                    <span className="font-mono text-[14px]">Core Concepts</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!isRepoRoute) {
+                        setChatError("Open a repository to view usage information.");
+                        return;
+                      }
+                      router.push(`/repo/${repoId}/usage`);
+                    }}
+                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
+                      pathname === `/repo/${repoId}/usage`
+                        ? "bg-[#2a2a2a] text-white"
+                        : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
+                    }`}
+                  >
+                    <Code2 className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}/usage` ? "text-gray-300" : "text-gray-600"}`} />
+                    <span className="font-mono text-[14px]">Usage</span>
+                  </button>
+                  <Separator className="my-2" />
+                  <button
+                    onClick={handleUpdateRepository}
+                    disabled={updating || !repoData || ("error" in repoData)}
+                    className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
+                      updating || !repoData || ("error" in repoData)
+                        ? "text-gray-500 cursor-not-allowed"
+                        : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
+                    }`}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 flex-shrink-0 ${updating ? "animate-spin" : ""} text-gray-600`} />
+                    <span className="font-mono text-[14px] truncate">
+                      {updating ? "Updating Repository..." : "Update Repository"}
+                    </span>
                   </button>
                 </div>
               </div>

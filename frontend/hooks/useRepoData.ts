@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, repoApi } from "@/lib/api";
+import { ProjectIntro } from "@/types/repo";
+
+type RepoData = ProjectIntro | { error: string } | null;
 
 export function useRepoData(repoId: string) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<RepoData>(null);
   const [loading, setLoading] = useState(true);
 
   const errorMessage = (() => {
     if (!data) return null;
-    const value = (data as any).error;
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
+    if ('error' in data && typeof data.error === 'string' && data.error.trim().length > 0) {
+      return data.error.trim();
     }
     return null;
   })();
@@ -24,12 +26,12 @@ export function useRepoData(repoId: string) {
       setData(null);
       setLoading(true);
 
-      let localData: any = null;
+      let localData: RepoData = null;
       if (typeof window !== 'undefined') {
         const stored = sessionStorage.getItem(key);
         if (stored) {
           try {
-            localData = JSON.parse(stored);
+            localData = JSON.parse(stored) as RepoData;
             if (isMounted) {
               setData(localData);
               setLoading(false);

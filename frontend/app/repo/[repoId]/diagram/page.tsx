@@ -2,7 +2,7 @@
 
 import React, { use, useState } from "react";
 import { useRepoData } from "@/hooks/useRepoData";
-import RepoNavigation from "@/component/repo/RepoNavigation";
+// import RepoNavigation from "@/component/repo/RepoNavigation";
 import MermaidDiagram from "@/component/repo/MermaidDiagram";
 
 export default function DiagramPage({ params }: { params: { repoId: string } | Promise<{ repoId: string }> }) {
@@ -47,15 +47,17 @@ export default function DiagramPage({ params }: { params: { repoId: string } | P
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#191919] text-white">
-      <RepoNavigation repoId={repoId} />
-      <div className="p-6">
-        <MermaidDiagram 
-          diagram={diagram}
-          title="Project Data Flow Diagram"
-          enableDialog={true}
-          fullSize={false}
-        />
+    <div className="min-h-screen bg-[#191919] text-white">
+      {/* <RepoNavigation repoId={repoId} /> */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-6">
+          <MermaidDiagram 
+            diagram={diagram}
+            title="Project Data Flow Diagram"
+            enableDialog={true}
+            fullSize={false}
+          />
+        </div>
       </div>
     </div>
   );

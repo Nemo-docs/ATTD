@@ -5,8 +5,8 @@ export default async function RepoPage({ params }: { params: { repoId: string } 
   const resolvedParams = await params;
   const { repoId } = resolvedParams;
   
-  // Redirect to the intro page by default
-  redirect(`/repo/${repoId}/intro`);
+  // Redirect to the getting started page by default
+  redirect(`/repo/${repoId}/getting-started`);
 }
 
 

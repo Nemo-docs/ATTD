@@ -18,87 +18,11 @@ const unwrapFencedContent = (text?: string) => {
 export default function IntroPage({ params }: { params: { repoId: string } | Promise<{ repoId: string }> }) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const { repoId } = resolvedParams;
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'updating' | 'updated'>('idle');
-
-  const handleUpdate = async (githubUrl: string) => {
-    if (updateStatus === 'updating') return;
-    
-    setUpdateStatus('updating');
-    
-    try {
-      const data = await repoApi.updateRepo({ github_url: githubUrl });
-      
-      if (data.up_to_date) {
-        setUpdateStatus('updated');
-      } else {
-        // Keep showing updating state
-        setUpdateStatus('updating');
-      }
-    } catch (error) {
-      console.error('Error updating repository:', error);
-      setUpdateStatus('idle');
-    }
-  };
 
   return (
     <div className="max-w-none">
       <RepoLayout repoId={repoId} render={(data) => (
         <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-
-          {/* Repository Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Repository Name */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-5 hover:bg-white/[0.03] transition-colors">
-              <div className="flex items-center gap-2 mb-3">
-                <GitBranch className="w-4 h-4 text-gray-400" />
-                <span className="text-[14px] text-gray-400 font-mono">Repository</span>
-              </div>
-              <div className="text-[14px] font-mono text-white">
-                {(data as any)?.name || 'Unknown'}
-              </div>
-            </div>
-
-            {/* GitHub URL */}
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-5 hover:bg-white/[0.03] transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Github className="w-4 h-4 text-gray-400" />
-                  <span className="text-[14px] text-gray-400 font-mono">Source</span>
-                </div>
-                {(data as any)?.github_url && (
-                  <button
-                    onClick={() => handleUpdate((data as any).github_url)}
-                    disabled={updateStatus === 'updating' || updateStatus === 'updated'}
-                    className={`
-                      flex items-center gap-1.5 text-[12px] font-mono transition-colors
-                      ${updateStatus === 'updating'
-                        ? 'text-gray-500 cursor-not-allowed'
-                        : updateStatus === 'updated'
-                        ? 'text-green-400 cursor-not-allowed'
-                        : 'text-gray-400 hover:text-gray-300 cursor-pointer'
-                      }
-                    `}
-                    title={updateStatus === 'updated' ? 'Already Updated' : 'Update Repository'}
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${updateStatus === 'updating' ? 'animate-spin' : ''}`} />
-                    <span>Update repository</span>
-                  </button>
-                )}
-              </div>
-              {(data as any)?.github_url ? (
-                <a
-                  href={(data as any).github_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[14px] font-mono text-blue-400 hover:text-blue-300 transition-colors truncate block"
-                >
-                  {(data as any).github_url}
-                </a>
-              ) : (
-                <span className="text-[14px] text-gray-500 font-mono">Not available</span>
-              )}
-            </div>
-          </div>
 
           {/* Project Introduction */}
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-6">

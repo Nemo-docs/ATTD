@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRepoData } from "@/hooks/useRepoData";
-import RepoNavigation from "./RepoNavigation";
+// import RepoNavigation from "./RepoNavigation";
 
 interface RepoLayoutProps {
   repoId: string;
@@ -16,7 +16,7 @@ export default function RepoLayout({ repoId, render }: RepoLayoutProps) {
     <div className="relative min-h-screen w-full bg-[#191919] text-white">
       <div className="w-full h-full rounded-lg overflow-hidden">
         {/* Navigation Header */}
-        <RepoNavigation repoId={repoId} />
+        {/* <RepoNavigation repoId={repoId} /> */}
 
         {/* Main Content */}
         <div className="p-6 relative z-10">

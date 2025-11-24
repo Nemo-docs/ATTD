@@ -124,8 +124,16 @@ const DiagramArea = React.memo(({
   onMouseUp: () => void; 
   onWheel: (e: React.WheelEvent) => void; 
 }) => {
+  const containerStyle = !fullSize ? {
+    scrollbarWidth: 'none' as const,
+    msOverflowStyle: 'none' as const
+  } : {};
+
   return (
-    <div className={fullSize ? "flex-1 overflow-hidden" : ""}>
+    <div 
+      className={fullSize ? "flex-1 overflow-hidden" : "max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:hidden"} 
+      style={containerStyle}
+    >
       {diagramRenderError && (
         <div className={`p-4 bg-red-500/10 border border-red-500/20 rounded-lg ${fullSize ? 'absolute top-4 left-4 right-4 z-10' : 'mb-4'}`}>
           <div className="text-red-400 text-[14px] font-mono">
@@ -136,12 +144,12 @@ const DiagramArea = React.memo(({
       
       <div 
         ref={containerRef}
-        className={fullSize ? "w-full h-full overflow-hidden flex items-center justify-center" : "overflow-x-auto"}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onWheel={onWheel}
+        className={fullSize ? "w-full h-full overflow-hidden flex items-center justify-center" : "w-full p-4 flex items-center justify-center"}
+        onMouseDown={fullSize ? onMouseDown : undefined}
+        onMouseMove={fullSize ? onMouseMove : undefined}
+        onMouseUp={fullSize ? onMouseUp : undefined}
+        onMouseLeave={fullSize ? onMouseUp : undefined}
+        onWheel={fullSize ? onWheel : undefined}
         style={{ 
           cursor: fullSize ? (isDragging ? 'grabbing' : 'grab') : 'default',
           userSelect: fullSize ? 'none' : 'auto',
@@ -149,7 +157,7 @@ const DiagramArea = React.memo(({
         }}
       >
         <div 
-          className={fullSize ? "" : "min-h-[500px] flex items-center justify-center"}
+          className={fullSize ? "" : ""}
           style={fullSize ? {
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             transformOrigin: 'center',
@@ -187,7 +195,7 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
         securityLevel: 'loose',
         fontFamily: '"Geist Mono", monospace',
         flowchart: {
-          useMaxWidth: !fullSize,
+          useMaxWidth: true,
           htmlLabels: true,
           curve: 'basis',
           diagramPadding: 20,
@@ -206,7 +214,7 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
     } catch (err) {
       console.warn('Mermaid initialization failed:', err);
     }
-  }, [fullSize]);
+  }, []); // remove fullSize dep, init once
 
   // Function to fit diagram to container
   const fitToContainer = useCallback(() => {
@@ -217,7 +225,7 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
     isFittingRef.current = true;
     console.log('Starting fitToContainer');
 
-    if (!containerRef.current || !fullSize) {
+    if (!containerRef.current) {
       isFittingRef.current = false;
       return;
     }
@@ -244,26 +252,26 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
         // Use getBBox() for intrinsic content bounding box (accurate, style-independent)
         const bbox = svg.getBBox();
         console.log('SVG bbox:', bbox);
-        const intrinsicWidth = bbox.width + (bbox.x * 2);  // Account for x offset (Mermaid padding)
-        const intrinsicHeight = bbox.height + (bbox.y * 2);  // Account for y offset
+        const intrinsicWidth = bbox.width + (Math.abs(bbox.x) * 2);  // Account for x offset (Mermaid padding)
+        const intrinsicHeight = bbox.height + (Math.abs(bbox.y) * 2);  // Account for y offset
         console.log('Calculated intrinsic dimensions:', { intrinsicWidth, intrinsicHeight });
         
         const containerRect = container.getBoundingClientRect();
-        const containerWidth = containerRect.width;
-        const containerHeight = containerRect.height;
-        console.log('Container dimensions:', { containerWidth, containerHeight });
+        const targetWidth = containerRect.width;
+        const targetHeight = fullSize ? containerRect.height : 500;
+        console.log('Container dimensions:', { targetWidth, targetHeight });
 
-        console.log('Intrinsic: containerWidth', containerWidth, 'intrinsicWidth', intrinsicWidth, 'intrinsicHeight', intrinsicHeight);
+        console.log('Intrinsic: targetWidth', targetWidth, 'intrinsicWidth', intrinsicWidth, 'intrinsicHeight', intrinsicHeight);
 
         if (intrinsicWidth > 0 && intrinsicHeight > 0) {
-          const widthScale = containerWidth / intrinsicWidth;
-          const heightScale = containerHeight / intrinsicHeight;
+          const widthScale = targetWidth / intrinsicWidth;
+          const heightScale = targetHeight / intrinsicHeight;
           const baseScale = Math.min(widthScale, heightScale);
-          const fitScale = Math.min(baseScale * 0.85, 1.0);  // Higher multiplier for less padding (~50px sides)
+          const fitScale = Math.min(baseScale * 0.95, 1.0);  // Less padding, no zoom in
           
           const scaledWidth = intrinsicWidth * fitScale;
           const scaledHeight = intrinsicHeight * fitScale;
-          const sideSpace = (containerWidth - scaledWidth) / 2;
+          const sideSpace = (targetWidth - scaledWidth) / 2;
 
           console.log('Scale calculations:', { widthScale, heightScale, baseScale, fitScale });
           console.log('fitScale', fitScale, 'scaledWidth', scaledWidth, 'sideSpace', sideSpace);
@@ -271,16 +279,18 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
           // Apply direct styling based on intrinsic
           svg.style.width = `${scaledWidth}px`;
           svg.style.height = `${scaledHeight}px`;
-          svg.style.maxWidth = '100%';
-          svg.style.maxHeight = '100%';
+          svg.style.maxWidth = fullSize ? 'none' : '100%';
+          svg.style.maxHeight = fullSize ? 'none' : `${targetHeight}px`;
           svg.style.display = 'block';
           svg.style.margin = '0 auto';
           console.log('Applied SVG styles');
 
-          setScale(1);  // Reset for interactions
-          setPosition({ x: 0, y: 0 });
+          if (fullSize) {
+            setScale(1);  // Reset for interactions
+            setPosition({ x: 0, y: 0 });
+          }
           hasFittedRef.current = true;
-          console.log('Set hasFittedRef to true, reset scale and position');
+          console.log('Set hasFittedRef to true, reset scale and position if fullSize');
 
           // Post-apply check
           setTimeout(() => {
@@ -350,9 +360,9 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
   useEffect(() => {
     if (!diagram) return;
 
+    hasFittedRef.current = false;
+    setDiagramRenderError(null);
     const renderDiagrams = async () => {
-      // clear previous render error state
-      setDiagramRenderError(null);
       const diagrams = document.querySelectorAll('.mermaid-diagram');
       for (const diagramElement of Array.from(diagrams)) {
         const code = diagramElement.textContent || '';
@@ -364,19 +374,13 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
             diagramElement.innerHTML = svg;
             // Prevent SVG from being interactive during drag
             const svgElement = diagramElement.querySelector('svg');
-            if (svgElement && fullSize) {
-              svgElement.style.pointerEvents = 'none';
+            if (svgElement) {
+              svgElement.style.pointerEvents = fullSize ? 'none' : 'auto';
+              svgElement.style.display = 'block';
+              svgElement.style.margin = '0 auto';
             }
-            if (svgElement && !fullSize) {
-              svgElement.style.width = '700px';
-              svgElement.style.height = 'auto';
-              svgElement.style.maxWidth = '100%';
-            }
-            // Auto-fit if fullSize and not yet fitted
-            if (fullSize && !hasFittedRef.current) {
-              // Increased timeout to account for dialog animation
-              setTimeout(fitToContainer, 300);
-            }
+            // Auto-fit after render
+            // fit called in setTimeout below
           } catch (error) {
             console.warn('Failed to render mermaid diagram:', error);
             const msg = (error && (error as any).message) ? (error as any).message : String(error);
@@ -388,6 +392,14 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
     };
 
     renderDiagrams();
+
+    // Fit after render
+    const fitTimeout = fullSize ? 300 : 100;
+    setTimeout(() => {
+      if (!hasFittedRef.current) {
+        fitToContainer();
+      }
+    }, fitTimeout);
   }, [diagram, fullSize, fitToContainer]);
 
   const handleCopySource = async () => {
@@ -467,7 +479,7 @@ export default function MermaidDiagram({ diagram, title = "Diagram", fullSize = 
     return (
       <>
         <div 
-          className="w-[750px] mx-auto cursor-pointer hover:opacity-80 transition-opacity" 
+          className="w-full max-w-[750px] mx-auto cursor-pointer hover:opacity-80 transition-opacity" 
           onClick={() => setIsDialogOpen(true)}
         >
           <MermaidDiagram 
