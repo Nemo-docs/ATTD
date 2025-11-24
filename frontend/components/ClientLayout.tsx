@@ -55,27 +55,27 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     setIsCommandPaletteOpen(false);
   };
 
-  const handleCommandSubmit = async (command: string) => {
-    console.log('Command submitted:', command);
+  // const handleCommandSubmit = async (command: string) => {
+  //   console.log('Command submitted:', command);
 
-    // For now, treat all commands as Q&A queries
-    try {
-      const response = await inlineQnaApi.answerQuery({
-        text: command,
-        cursor_position: { x: commandPalettePosition.x, y: commandPalettePosition.y },
-        page_id: currentPageId,
-      });
+  //   // For now, treat all commands as Q&A queries
+  //   try {
+  //     const response = await inlineQnaApi.answerQuery({
+  //       text: command,
+  //       cursor_position: { x: commandPalettePosition.x, y: commandPalettePosition.y },
+  //       page_id: currentPageId,
+  //     });
 
-      // Insert the answer at cursor position instead of showing popup
-      insertTextAtCursor(response.answer);
-      onClose();
+  //     // Insert the answer at cursor position instead of showing popup
+  //     insertTextAtCursor(response.answer);
+  //     onClose();
 
-    } catch (error) {
-      console.error('Error getting Q&A answer:', error);
-      // For now, just close the palette on error
-      onClose();
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Error getting Q&A answer:', error);
+  //     // For now, just close the palette on error
+  //     onClose();
+  //   }
+  // };
 
   const insertTextAtCursor = (text: string) => {
     const selection = window.getSelection();
@@ -104,7 +104,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     onPress: handleCtrlK,
   });
 
-  const showSidebar = !isAuthRoute && pathname !== "/";
+  const showSidebar = !isAuthRoute && pathname !== "/" && pathname !== "/dashboard";
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isAuthRoute) {

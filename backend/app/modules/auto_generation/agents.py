@@ -430,7 +430,29 @@ Focus on unique aspects of this repository.
         """Fix a single Mermaid code snippet by calling the LLM to validate and correct it."""
         try:
             system_content = check_fix_mermaid_code_system_prompt
-            user_content = check_fix_mermaid_code_user_prompt + "\n\n This is the mermaid code to check and fix: " + mermaid_code
+            user_content = check_fix_mermaid_code_user_prompt + """\n\n  **IMPORTANT STYLING REQUIREMENTS:**
+- Use high-contrast colors for maximum readability
+- Add step numbers to show process flow sequence
+- Use descriptive labels that are easy to understand
+- Apply visual hierarchy with different node shapes and colors
+- Make the diagram clean and professional
+
+**Color Scheme:**
+- User Interface: Light blue (#E1F5FE) with dark text
+- Business Logic/Services: Light green (#E8F5E8) with dark text
+- Data Processing: Light yellow (#FFFDE7) with dark text
+- Database/Storage: Light purple (#F3E5F5) with dark text
+- External APIs: Light orange (#FFE0B2) with dark text
+- Start/Entry points: Light cyan (#E0F2F1) with dark text
+
+**Node Shapes:**
+- Use rectangles [Node] for components
+- Use rounded rectangles [Node] for user interfaces
+- Use cylinders [(Database)] for data storage
+- Use hexagons [Node] for processing steps
+- Use diamonds [Node] for decision points
+
+Provide only the Mermaid diagram code, properly formatted and functional with enhanced styling.  In output dont give ```mermaid ``` tagsThis is the mermaid code to check and fix: \n\n```mermaid\n""" + mermaid_code + "\n```"
             system_msg = {"role": "system", "content": system_content}
             user_msg = {"role": "user", "content": user_content}
             messages = [system_msg, user_msg]

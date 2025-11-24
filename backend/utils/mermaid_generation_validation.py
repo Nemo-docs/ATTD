@@ -169,8 +169,8 @@ Analyze the project structure and create a Mermaid flowchart that shows:
 - Use rectangles [Node] for components
 - Use rounded rectangles [Node] for user interfaces
 - Use cylinders [(Database)] for data storage
-- Use hexagons {{Node}} for processing steps
-- Use diamonds {{Node}} for decision points
+- Use hexagons [Node] for processing steps
+- Use diamonds [Node] for decision points
 
 Provide only the Mermaid diagram code, properly formatted and functional with enhanced styling."""
 

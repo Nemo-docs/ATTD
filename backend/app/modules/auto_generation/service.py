@@ -820,6 +820,26 @@ Return a JSON object where each key is a filename and each value is a brief desc
             self.logger.error(f"Error deleting project intro: {str(e)}")
             return False
 
+    async def list_all_project_intros(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all project introductions from the database.
+        
+        Returns:
+            List[Dict]: List of project intro data
+        """
+        try:
+            await self._ensure_indexes()
+            cursor = self.collection.find({}).sort("created_at", -1)
+            results = []
+            async for doc in cursor:
+                doc.pop("_id", None)
+                results.append(doc)
+            self.logger.info(f"Retrieved {len(results)} project intros")
+            return results
+        except PyMongoError as e:
+            self.logger.error(f"Error listing project intros: {e}")
+            raise e
+
     # Database operations (moved from database.py)
 
     async def _save_project_intro(self, project_data: Dict[str, Any]) -> bool:

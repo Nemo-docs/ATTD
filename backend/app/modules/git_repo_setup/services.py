@@ -8,7 +8,7 @@ from core.logger import logger_instance
 from app.modules.auto_generation.service import AutoGenerationService
 from utils.s3_utils import zip_folder, upload_file_to_s3
 from app.modules.git_repo_setup.management_services import GitRepoManagementService
-from typing import Dict, Any
+from typing import Dict, Any, List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -191,3 +191,12 @@ class GitRepoSetupService:
         except Exception as e:
             self.logger.error(f"Error in update_repo_indexer: {str(e)}")
             return {"error": str(e)}
+
+    async def list_repos(self) -> List[Dict[str, Any]]:
+        """
+        List all repositories.
+        
+        Returns:
+            List[Dict]: List of repository data
+        """
+        return await self.auto_generation_service.list_all_project_intros()

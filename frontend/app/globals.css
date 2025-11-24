@@ -341,3 +341,7 @@ main {
     @apply bg-background text-foreground;
   }
 }
+
+.center-first-heading :is(h1, h2, h3):first-child {
+  @apply text-center;
+}

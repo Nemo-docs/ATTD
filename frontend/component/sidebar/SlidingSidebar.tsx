@@ -307,7 +307,7 @@ export function SlidingSidebar() {
                     }`}
                   >
                     <Code2 className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === `/repo/${repoId}/usage` ? "text-gray-300" : "text-gray-600"}`} />
-                    <span className="font-mono text-[14px]">Usage</span>
+                    <span className="font-mono text-[14px]">API Documentation</span>
                   </button>
                   <Separator className="my-2" />
                   <button

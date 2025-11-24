@@ -233,6 +233,9 @@ export const repoApi = {
       body: JSON.stringify(data),
     });
   },
+  listRepos: async (): Promise<ProjectIntro[]> => {
+    return apiRequest('/git-repo-list');
+  },
 };
 
 const userModelSchema = z.object({
@@ -247,17 +250,6 @@ const registerUserResponseSchema = z.object({
 });
 
 export type RegisterUserResponse = z.infer<typeof registerUserResponseSchema>;
-
-export const userApi = {
-  register: async (userId: string): Promise<RegisterUserResponse> => {
-    const response = await apiRequest<Record<string, unknown>>('/user/register', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: userId }),
-    });
-
-    return registerUserResponseSchema.parse(response);
-  },
-};
 
 // API Key types
 export interface APIKeyCreateRequest {

@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from starlette import status
 from core.logger import logger_instance
 import traceback
+from typing import List
 from .schemas import CreateGitRepoRequest, CreateGitRepoResponse, GetGitRepoResponse, UpdateGitRepoResponse
 from .services import GitRepoSetupService
 from .management_services import GitRepoManagementService
@@ -59,6 +60,19 @@ async def get_git_repo(repo_hash: str):
         raise
     except Exception as e:
         logger_instance.error(f"Unexpected error in get_git_repo: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+@router.get("/git-repo-list", response_model=List[GetGitRepoResponse])
+async def list_git_repos():
+    """List all repository metadata."""
+    try:
+        logger_instance.info("Listing all git repos")
+        results = await git_repo_setup_service.list_repos()
+        return results
+    except Exception as e:
+        logger_instance.error(f"Unexpected error in list_git_repos: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
