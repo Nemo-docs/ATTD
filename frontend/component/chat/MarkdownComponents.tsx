@@ -55,7 +55,7 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
 
     // Inline code
     return (
-      <code className={`px-1 py-0.5 rounded text-xs font-mono ${
+      <code className={`px-1 py-0.5 rounded text-xs font-mono break-words ${
         isUser
           ? 'bg-primary-foreground/20 text-primary-foreground'
           : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -87,7 +87,7 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
 
   // Paragraphs
   p({ children }) {
-    return <p className="mb-2 leading-relaxed">{children}</p>;
+    return <p className="mb-2 leading-relaxed break-words">{children}</p>;
   },
 
   // Lists

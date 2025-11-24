@@ -438,7 +438,12 @@ Focus on unique aspects of this repository.
                 model="anthropic/claude-sonnet-4.5",
                 messages=messages,
             )
-            return resp.choices[0].message.content
+            raw_content = resp.choices[0].message.content.strip()
+            
+            # Clean the response to remove any ```mermaid tags
+            cleaned_code = re.sub(r'^```mermaid\s*\n?', '', raw_content, flags=re.MULTILINE | re.IGNORECASE)
+            cleaned_code = re.sub(r'\n?```\s*$', '', cleaned_code, flags=re.MULTILINE | re.IGNORECASE)
+            return cleaned_code.strip()
         except Exception as e:
             self.logger.error(f"Error checking and fixing mermaid code: {e}")
             return mermaid_code

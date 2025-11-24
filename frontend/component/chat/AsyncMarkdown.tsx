@@ -28,14 +28,16 @@ const AsyncMarkdown = React.memo(({ children, components, isUser }: AsyncMarkdow
   }, [children]);
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={containsRawHtml ? [rehypeRaw] : []}
-      components={components}
-      skipHtml={!containsRawHtml}
-    >
-      {processedContent}
-    </ReactMarkdown>
+    <div className="break-words overflow-x-hidden">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={containsRawHtml ? [rehypeRaw] : []}
+        components={components}
+        skipHtml={!containsRawHtml}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
   );
 });
 

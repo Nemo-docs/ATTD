@@ -51,7 +51,7 @@ export default function CoreConceptsPage({ params }: { params: { repoId: string 
     <div className="min-h-screen bg-[#191919] text-white">
       {/* <RepoNavigation repoId={repoId} /> */}
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="prose prose-invert max-w-none bg-white/[0.02] border border-white/[0.06] rounded-lg p-6">
+        <div className="prose prose-invert max-w-none break-words bg-white/[0.02] border border-white/[0.06] rounded-lg p-6">
           <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
             {coreConcepts}
           </AsyncMarkdown>
