@@ -56,19 +56,19 @@ export default function GettingStartedPage({ params }: { params: { repoId: strin
                 {repoType === 'application' && (
                   <>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Overview</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as ApplicationRepoInfo).overview) || 'No overview available.'}
                       </AsyncMarkdown>
                     </section>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Setup and Installation</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as ApplicationRepoInfo).setup_and_installation) || 'No setup instructions available.'}
                       </AsyncMarkdown>
                     </section>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Testing</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as ApplicationRepoInfo).testing) || 'No testing information available.'}
                       </AsyncMarkdown>
@@ -78,19 +78,19 @@ export default function GettingStartedPage({ params }: { params: { repoId: strin
                 {repoType === 'library' && (
                   <>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Purpose</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as LibraryRepoInfo).purpose) || 'No purpose description available.'}
                       </AsyncMarkdown>
                     </section>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Installation</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as LibraryRepoInfo).installation) || 'No installation instructions available.'}
                       </AsyncMarkdown>
                     </section>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Quick Start Examples</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       {(repoInfo as LibraryRepoInfo).quick_start_examples && (repoInfo as LibraryRepoInfo).quick_start_examples.length > 0 ? (
                         <ul className="space-y-4">
                           {(repoInfo as LibraryRepoInfo).quick_start_examples.map((example, index) => (
@@ -110,13 +110,13 @@ export default function GettingStartedPage({ params }: { params: { repoId: strin
                 {repoType === 'service' && (
                   <>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Service Description</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as ServiceRepoInfo).service_description) || 'No description available.'}
                       </AsyncMarkdown>
                     </section>
                     <section>
-                      {/* <h3 className="text-[18px] font-semibold mb-3">Running Locally</h3> */}
+                      <h3 className="text-[18px] font-semibold mb-3"></h3>
                       <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {unwrapFencedContent((repoInfo as ServiceRepoInfo).running_locally) || 'No local running instructions available.'}
                       </AsyncMarkdown>

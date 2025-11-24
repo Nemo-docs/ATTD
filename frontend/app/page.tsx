@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { pageApi, repoApi, userApi, useAuthenticatedFetch } from "../lib/api";
+import { pageApi, repoApi, useAuthenticatedFetch } from "../lib/api";
 // import { ensureUserId, resolveUserId } from "../lib/user";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

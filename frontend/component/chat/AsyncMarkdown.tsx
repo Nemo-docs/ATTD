@@ -19,11 +19,11 @@ interface AsyncMarkdownProps {
 // remark plugins directly. We still detect raw HTML/SVG/mermaid markers to
 // enable rehype-raw when necessary.
 const AsyncMarkdown = React.memo(({ children, components, isUser }: AsyncMarkdownProps) => {
-  const [processedContent, setProcessedContent] = useState<string>(children);
+  const [processedContent, setProcessedContent] = useState<string>(children.trim());
   const [containsRawHtml, setContainsRawHtml] = useState<boolean>(false);
 
   useEffect(() => {
-    setProcessedContent(children);
+    setProcessedContent(children.trim());
     setContainsRawHtml(/<svg[\s\S]*?>/i.test(children));
   }, [children]);
 

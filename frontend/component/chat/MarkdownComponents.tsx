@@ -65,41 +65,41 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
     );
   },
 
-  // Headings with proper hierarchy
+  // Headings with improved hierarchy and spacing
   h1({ children }) {
-    return <h1 className="text-xl font-bold mb-2">{children}</h1>;
+    return <h1 className="mt-6 mb-4 text-2xl font-bold leading-tight">{children}</h1>;
   },
   h2({ children }) {
-    return <h2 className="text-lg font-bold mb-2">{children}</h2>;
+    return <h2 className="mt-5 mb-3 text-xl font-bold leading-tight">{children}</h2>;
   },
   h3({ children }) {
-    return <h3 className="text-base font-bold mb-1">{children}</h3>;
+    return <h3 className="mt-4 mb-3 text-lg font-semibold leading-tight">{children}</h3>;
   },
   h4({ children }) {
-    return <h4 className="text-sm font-bold mb-1">{children}</h4>;
+    return <h4 className="mt-3 mb-2 text-base font-semibold leading-tight">{children}</h4>;
   },
   h5({ children }) {
-    return <h5 className="text-xs font-bold mb-1">{children}</h5>;
+    return <h5 className="mt-3 mb-2 text-sm font-semibold leading-tight">{children}</h5>;
   },
   h6({ children }) {
-    return <h6 className="text-xs font-semibold mb-1">{children}</h6>;
+    return <h6 className="mt-3 mb-2 text-sm font-medium leading-tight">{children}</h6>;
   },
 
-  // Paragraphs
+  // Paragraphs with 14px body text
   p({ children }) {
-    return <p className="mb-2 leading-relaxed break-words">{children}</p>;
+    return <p className="mb-3 text-sm leading-relaxed break-words">{children}</p>;
   },
 
   // Lists
   ul({ children }) {
-    return <ul className="list-disc list-outside ml-4 pl-2 space-y-1 mb-2">{children}</ul>;
+    return <ul className="list-disc list-outside ml-6 pl-2 space-y-2 mb-3">{children}</ul>;
   },
   ol({ children }) {
-    return <ol className="list-decimal list-outside ml-4 pl-2 space-y-1 mb-2">{children}</ol>;
+    return <ol className="list-decimal list-outside ml-6 pl-2 space-y-2 mb-3">{children}</ol>;
   },
   li({ children, ...props }) {
     return (
-      <li className="leading-relaxed break-words ml-0 pl-1">
+      <li className="leading-relaxed break-words ml-0 pl-1 text-sm">
         {children}
       </li>
     );
@@ -108,7 +108,7 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
   // Blockquotes
   blockquote({ children }) {
     return (
-      <blockquote className={`border-l-4 pl-4 italic my-2 ${
+      <blockquote className={`border-l-4 pl-4 italic my-4 text-sm ${
         isUser
           ? 'border-primary-foreground/30 text-primary-foreground/80'
           : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
@@ -121,8 +121,8 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
   // Tables
   table({ children }) {
     return (
-      <div className="overflow-x-auto my-2">
-        <table className={`min-w-full border ${
+      <div className="overflow-x-auto my-4">
+        <table className={`min-w-full border text-sm ${
           isUser
             ? 'border-primary-foreground/20'
             : 'border-gray-200 dark:border-gray-700'
@@ -158,7 +158,7 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
   // Links
   a({ children, href }) {
     return (
-      <a href={href} className={`hover:underline ${
+      <a href={href} className={`hover:underline text-sm ${
         isUser
           ? 'text-primary-foreground underline-offset-2'
           : 'text-blue-600 dark:text-blue-400'
