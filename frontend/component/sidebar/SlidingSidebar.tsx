@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText, BookOpen, Target, Code2, RefreshCw } from "lucide-react";
+import { Building2, Notebook, Plus, Loader2, AlertCircle, ChevronRight, ChevronLeft, Settings, FileText, BookOpen, Target, Code2, RefreshCw, House } from "lucide-react";
 import { KeysModal } from "@/component/keys/KeysModal";
 import { pageApi, chatQaApi } from "@/lib/api";
 import { Page } from "@/types/page";
@@ -27,7 +27,6 @@ export function SlidingSidebar() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [isKeysModalOpen, setIsKeysModalOpen] = useState(false);
   const [repoData, setRepoData] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -240,18 +239,8 @@ export function SlidingSidebar() {
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#2a2a2a] px-4 py-4">
-            <div className="flex items-center gap-2">
-              {/* <div className="h-2 w-2 rounded-full bg-gray-600"></div> */}
-              <h2 className="font-mono text-[14px] font-medium text-gray-300">Nemo</h2>
-            </div>
-            <button
-              onClick={() => setIsKeysModalOpen(true)}
-              className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-[#2a2a2a] hover:text-gray-300"
-              title="API Settings"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex items-center border-b border-[#2a2a2a] px-4 py-4">
+            <h2 className="font-mono text-[14px] font-medium text-gray-300">Nemo</h2>
           </div>
 
           {/* Content */}
@@ -273,6 +262,18 @@ export function SlidingSidebar() {
                   <Plus className="h-3.5 w-3.5" />
                 )}
                 {creatingChat ? "Creating..." : "New Doc"}
+              </button>
+
+              <button
+                onClick={() => router.push('/dashboard')}
+                className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
+                  pathname === '/dashboard'
+                    ? "bg-[#2a2a2a] text-white"
+                    : "text-gray-400 hover:bg-[#232323] hover:text-gray-200"
+                }`}
+              >
+                <House className={`h-3.5 w-3.5 flex-shrink-0 ${pathname === '/dashboard' ? "text-gray-300" : "text-gray-600"}`} />
+                <span className="font-mono text-[14px]">Dashboard</span>
               </button>
 
               {/* Organisation Section */}
@@ -353,7 +354,7 @@ export function SlidingSidebar() {
               {/* Personal Pages Section */}
               <div>
                 <div className="mb-2 px-2 font-mono text-[12px] font-medium uppercase tracking-wider text-gray-600">
-                  Pages
+                  Notes
                 </div>
                 {renderPersonalPages()}
               </div>
@@ -390,12 +391,6 @@ export function SlidingSidebar() {
           <ChevronLeft className="h-4 w-4" />
         )}
       </button>
-
-      {/* KeysModal */}
-      <KeysModal
-        open={isKeysModalOpen}
-        onOpenChange={setIsKeysModalOpen}
-      />
     </>
   );
 }

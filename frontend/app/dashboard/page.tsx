@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, GitBranch, ExternalLink, Plus, Trash2, LayoutDashboard, NotepadText, Loader2, Globe, User, FileText, Bookmark, MoveUpRight, PlusCircle } from "lucide-react";
+import { Search, GitBranch, ExternalLink, Plus, Trash2, LayoutDashboard, NotepadText, Loader2, Globe, User, FileText, Bookmark, MoveUpRight, PlusCircle, Settings } from "lucide-react";
 import Link from 'next/link';
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -32,6 +32,7 @@ import { RepositoryList } from "@/component/dashboardComponent/RepositoryList";
 import { PageList } from "@/component/dashboardComponent/PageList";
 import { CloneDialog } from "@/component/dashboardComponent/CloneDialog";
 import { CreatePageDialog } from "@/component/dashboardComponent/CreatePageDialog";
+import { KeysModal } from "@/component/keys/KeysModal";
 import { useDashboardData } from "@/hooks/dashboardHooks/useDashboardData";
 
 
@@ -49,6 +50,7 @@ export default function DashboardPage() {
     const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
     const [newPageTitle, setNewPageTitle] = useState('');
     const [selectedRepo, setSelectedRepo] = useState<ProjectIntro | null>(null);
+    const [isKeysModalOpen, setIsKeysModalOpen] = useState(false);
 
 
     useEffect(() => {
@@ -103,6 +105,15 @@ export default function DashboardPage() {
                         <p className="mt-1 text-[14px] text-gray-500">
                             Explore and manage your repositories and pages
                         </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsKeysModalOpen(true)}
+                            className="rounded-md p-2 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300"
+                            title="API Settings"
+                        >
+                            <Settings className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
 
@@ -264,6 +275,11 @@ export default function DashboardPage() {
             <CloneDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} onCloneSuccess={refetch} />
 
             <CreatePageDialog isOpen={isTitleDialogOpen} onOpenChange={setIsTitleDialogOpen} selectedRepo={selectedRepo} />
+
+            <KeysModal
+                open={isKeysModalOpen}
+                onOpenChange={setIsKeysModalOpen}
+            />
         </div>
     );
 }

@@ -16,7 +16,7 @@ export function PageCard({ page, onDelete }: PageCardProps) {
   return (
     <div
       className="group relative rounded-md border border-white/5 bg-white/[0.02] p-3 transition-colors hover:border-white/10 hover:bg-white/[0.04] cursor-pointer"
-      onClick={() => router.push(`/${page.id}`)}
+      onClick={() => router.push(`/repo/${page.repo_hash}/page/${page.id}`)}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-row items-center min-w-0 flex-1 justify-center gap-2">
