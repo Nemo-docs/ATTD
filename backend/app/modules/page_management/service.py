@@ -32,7 +32,7 @@ class PageManagementService:
         """Ensure indexes exist. Called lazily on first DB operation."""
         if not self._indexes_created:
             try:
-                await self.collection.create_index("id", unique=True)
+                # await self.collection.create_index("id", unique=True)
                 await self.collection.create_index([("user_id", 1), ("created_at", -1)])
                 self.logger.info(
                     f"Created indexes in collection {self.collection_name}"
@@ -42,7 +42,7 @@ class PageManagementService:
                 self.logger.error(f"Could not create index: {e}")
 
     async def create_page(
-        self, user_id: str, title: str, content: str = ""
+        self, user_id: str, title: str, content: str = "", repo_hash: str = "", repo_name: str = ""
     ) -> Dict[str, Any]:
         """
         Create a new page with the given title and content.
@@ -50,7 +50,8 @@ class PageManagementService:
         Args:
             title: Page title
             content: Initial page content (default: empty)
-
+            repo_hash: Repository hash
+            repo_name: Repository name
         Returns:
             Dict containing page data or error information
         """
@@ -66,6 +67,8 @@ class PageManagementService:
                 user_id=user_id,
                 title=title,
                 content=content,
+                repo_hash=repo_hash,
+                repo_name=repo_name,
             )
 
             # Convert to dict for database storage

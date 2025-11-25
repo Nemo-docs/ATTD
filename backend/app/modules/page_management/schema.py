@@ -10,6 +10,8 @@ class CreatePageRequest(BaseModel):
 
     title: str = Field(..., description="Page title")
     content: Optional[str] = Field(default="", description="Initial page content")
+    repo_hash: str = Field(..., description="Repository hash")
+    repo_name: str = Field(..., description="Repository name")
 
 
 class CreatePageResponse(BaseModel):

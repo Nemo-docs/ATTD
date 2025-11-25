@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
 import uuid
 
 
@@ -19,6 +18,8 @@ class PageModel(BaseModel):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow, description="Page last update timestamp"
     )
+    repo_hash: str = Field(..., description="Associated repository hash")
+    repo_name: str = Field(..., description="Associated repository name")
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}

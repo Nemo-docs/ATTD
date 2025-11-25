@@ -45,7 +45,7 @@ async def create_page(
 
         # Create the page
         result = await page_service.create_page(
-            user_id=user_id, title=request.title, content=request.content
+            user_id=user_id, title=request.title, content=request.content, repo_hash=request.repo_hash, repo_name=request.repo_name
         )
 
         # Check if there was an error during creation
@@ -76,7 +76,6 @@ async def get_all_pages(req: Request) -> GetPagesResponse:
 
     Args:
         req: FastAPI request object containing authenticated user info
-WWDC 
     Returns:
         List of all pages and total count
     """

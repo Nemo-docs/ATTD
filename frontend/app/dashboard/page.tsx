@@ -3,247 +3,267 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, GitBranch, ExternalLink, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Search, GitBranch, ExternalLink, Plus, Trash2, LayoutDashboard, NotepadText, Loader2, Globe, User, FileText, Bookmark, MoveUpRight, PlusCircle } from "lucide-react";
+import Link from 'next/link';
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { repoApi } from "@/lib/api";
 import { userApi, type UserRepoInfo } from "@/lib/userApi";
+import { pageApi } from "@/lib/api";
 import type { ProjectIntro } from "@/types/repo";
+import type { Page } from "@/types/page";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RepositoryList } from "@/component/dashboardComponent/RepositoryList";
+import { PageList } from "@/component/dashboardComponent/PageList";
+import { CloneDialog } from "@/component/dashboardComponent/CloneDialog";
+import { CreatePageDialog } from "@/component/dashboardComponent/CreatePageDialog";
+import { useDashboardData } from "@/hooks/dashboardHooks/useDashboardData";
+
 
 export default function DashboardPage() {
     const router = useRouter();
-    const [repositories, setRepositories] = useState<ProjectIntro[]>([]);
-    const [myRepoInfos, setMyRepoInfos] = useState<UserRepoInfo[]>([]);
-    const [myHashes, setMyHashes] = useState(new Set<string>());
+    const { repositories, myRepoInfos, myHashes, pages, loading, pagesLoading, handleAdd, handleRemove, handleDeletePage, refetch } = useDashboardData();
     const [viewMode, setViewMode] = useState<'all' | 'my'>('all');
-    const [searchTerm, setSearchTerm] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [repoSearchTerm, setRepoSearchTerm] = useState("");
+    const [pageSearchTerm, setPageSearchTerm] = useState("");
+    const [currentView, setCurrentView] = useState<'repositories' | 'pages'>('repositories');
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [githubUrl, setGithubUrl] = useState("");
+    const [cloning, setCloning] = useState(false);
+    const [cloneError, setCloneError] = useState<string | null>(null);
+    const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
+    const [newPageTitle, setNewPageTitle] = useState('');
+    const [selectedRepo, setSelectedRepo] = useState<ProjectIntro | null>(null);
+
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const [data, infos] = await Promise.all([
-                    repoApi.listRepos(),
-                    userApi.getMyRepoInfos()
-                ]);
-                setRepositories(data);
-                setMyRepoInfos(infos);
-                setMyHashes(new Set(infos.map((info: UserRepoInfo) => info.repo_hash)));
-            } catch (error) {
-                console.error("Failed to fetch data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        refetch();
     }, []);
 
-    const handleAdd = async (repo: ProjectIntro) => {
-        if (myHashes.has(repo.repo_hash)) return;
-        try {
-            await userApi.addRepoInfo({
-                repo_hash: repo.repo_hash,
-                repo_name: repo.name,
-                repo_url: repo.github_url
-            });
-            setMyHashes(prev => new Set([...prev, repo.repo_hash]));
-        } catch (error) {
-            console.error("Failed to add repo:", error);
-        }
-    };
-
-    const handleRemove = async (repo: ProjectIntro) => {
-        if (!myHashes.has(repo.repo_hash)) return;
-        try {
-            await userApi.removeRepoInfo({
-                repo_hash: repo.repo_hash
-            });
-            setMyHashes(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(repo.repo_hash);
-                return newSet;
-            });
-            setMyRepoInfos(prev => prev.filter(info => info.repo_hash !== repo.repo_hash));
-        } catch (error) {
-            console.error("Failed to remove repo:", error);
-        }
+    const handleClone = async () => {
+      if (!githubUrl) return;
+      setCloning(true);
+      setCloneError(null);
+      try {
+        const res = await repoApi.createRepo({ github_url: githubUrl });
+        // Refetch data to update the list
+        refetch();
+        setIsDialogOpen(false);
+        setGithubUrl("");
+      } catch (err) {
+        console.error(err);
+        setCloneError((err as any).message ?? String(err));
+      } finally {
+        setCloning(false);
+      }
     };
 
     const displayedRepositories = repositories.filter(repo =>
-        repo.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        repo.name.toLowerCase().includes(repoSearchTerm.toLowerCase()) &&
         (viewMode === 'all' || myHashes.has(repo.repo_hash))
+    );
+
+    const displayedPages = pages.filter(page =>
+      page.title.toLowerCase().includes(pageSearchTerm.toLowerCase())
     );
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100 flex items-center justify-center">
+            <div className="min-h-screen bg-[#191919] text-white flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-8 h-8 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-zinc-400 text-sm font-medium">Loading repositories...</p>
+                    <Loader2 className="h-8 w-8 text-gray-500 animate-spin" />
+                    <p className="text-gray-500 text-sm font-medium">Loading dashboard...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#191919] text-zinc-100">
-            {/* Subtle background pattern */}
-            <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-700/10 via-transparent to-transparent pointer-events-none" />
-
-            <div className="relative container mx-auto px-6 py-12 max-w-6xl">
+        <div className="min-h-screen bg-[#191919] text-white">
+            <div className="mx-auto max-w-6xl px-6 py-12">
                 {/* Header */}
-                <div className="mb-12">
-                    <div className="flex items-center gap-3 mb-3">
-                        {/* <Sparkles className="w-8 h-8 text-zinc-400" /> */}
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-                            Dashboard
-                        </h1>
+                <div className="mb-12 flex items-center justify-between">
+                    <div>
+                        <h1 className="font-mono text-[24px] font-medium tracking-tight">Dashboard</h1>
+                        <p className="mt-1 text-[14px] text-gray-500">
+                            Explore and manage your repositories and pages
+                        </p>
                     </div>
-                    <p className="text-zinc-400 text-lg">Explore and manage your repositories</p>
+                </div>
+
+                {/* Main View Tabs */}
+                <div className="mb-8">
+                    <div className="inline-flex rounded-md border border-white/5 bg-white/[0.02] overflow-hidden">
+                        <button
+                            onClick={() => setCurrentView('repositories')}
+                            className={`h-9 gap-2 px-4 font-mono text-[14px] text-white transition-colors flex items-center ${
+                                currentView === 'repositories'
+                                    ? 'bg-white/10 hover:bg-white/15'
+                                    : 'bg-transparent hover:bg-white/5 text-gray-500 hover:text-white'
+                            }`}
+                        >
+                            <LayoutDashboard className="size-4" />
+                            Repositories
+                        </button>
+                        <button
+                            onClick={() => setCurrentView('pages')}
+                            className={`h-9 gap-2 px-4 font-mono text-[14px] text-white transition-colors flex items-center ${
+                                currentView === 'pages'
+                                    ? 'bg-white/10 hover:bg-white/15'
+                                    : 'bg-transparent hover:bg-white/5 text-gray-500 hover:text-white'
+                            }`}
+                        >
+                            <FileText className="size-4" />
+                            Notes
+                        </button>
+                        <Link
+                            href="/snippets"
+                            className="h-9 gap-2 px-4 font-mono text-[14px] text-white transition-colors hover:bg-white/15 flex items-center bg-transparent hover:bg-white/5 text-gray-500 hover:text-white"
+                        >
+                            <NotepadText className="size-4" />
+                            My Snippets
+                            <MoveUpRight className="size-3" />
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Controls Section */}
-                <div className="mb-8 space-y-6">
-                    {/* View Mode Toggle */}
-                    <div className="inline-flex gap-1 p-1 bg-zinc-800/60 backdrop-blur-sm rounded-lg border border-zinc-700/60">
-                        <button
-                            onClick={() => setViewMode('all')}
-                            className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${viewMode === 'all'
-                                ? 'bg-zinc-700/50 text-zinc-100 shadow-lg'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            All Public
-                        </button>
-                        <button
-                            onClick={() => setViewMode('my')}
-                            className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${viewMode === 'my'
-                                ? 'bg-zinc-700/50 text-zinc-100 shadow-lg'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            My Repositories
-                        </button>
-                    </div>
-
-                    {/* Search Bar */}
-                    <div className="max-w-md mx-auto relative group">
-                        <Search className="pointer-events-none z-10 absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-200 h-5 w-5 transition-colors group-focus-within:text-zinc-300" />
-                        <input
-                            type="text"
+                {currentView === 'repositories' ? (
+                  <div className="mb-8">
+                    <div className="flex items-center justify-center gap-4 max-w-2xl mx-auto">
+                      <div className="flex-1 max-w-md">
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
+                          <Input
+                            className="h-10 rounded-md border-white/5 bg-white/5 pl-10 font-mono text-[14px] text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-white/20"
                             placeholder="Search repositories..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-zinc-800/60 backdrop-blur-sm border border-zinc-700/60 rounded-lg text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600/60 focus:border-zinc-600 transition-all"
-                        />
+                            value={repoSearchTerm}
+                            onChange={(e) => setRepoSearchTerm(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <Select value={viewMode} onValueChange={(value: string) => setViewMode(value as 'all' | 'my')}>
+                        <SelectTrigger className="w-[180px] h-10 rounded-md border-white/5 bg-white/5 px-3 font-mono text-[14px] text-white focus-visible:ring-0 focus-visible:ring-0">
+                          <SelectValue placeholder="View Mode" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#191919] border-white/10 text-white min-w-[180px]">
+                          <SelectItem value="all" className="font-mono text-[14px]">
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-4 w-4" />
+                              All Public
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="my" className="font-mono text-[14px]">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              My Repositories
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                </div>
+                  </div>
+                ) : (
+                  <div className="mb-8">
+                    {/* Search Bar for Pages */}
+                    <div className="max-w-md mx-auto">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
+                        <Input
+                          className="h-10 rounded-md border-white/5 bg-white/5 pl-10 font-mono text-[14px] text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-white/20"
+                          placeholder="Search pages..."
+                          value={pageSearchTerm}
+                          onChange={(e) => setPageSearchTerm(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Repository List */}
-                <div className="space-y-4">
-                    {displayedRepositories.length === 0 ? (
-                        <div className="text-center py-16">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-700/60 mb-4">
-                                <GitBranch className="w-8 h-8 text-zinc-600" />
-                            </div>
-                            <p className="text-zinc-400 text-lg">
-                                {viewMode === 'my'
-                                    ? 'No repositories added yet. Switch to "All Public" to explore.'
-                                    : 'No repositories found.'}
-                            </p>
-                        </div>
-                    ) : (
-                        displayedRepositories.map((repo) => {
-                            const isMine = myHashes.has(repo.repo_hash);
-                            const showAddButton = viewMode === 'all' && !isMine;
-                            const showRemoveButton = isMine;
-
-                            return (
-                                <div
-                                    key={repo.repo_hash}
-                                    className="group relative bg-zinc-800/40 backdrop-blur-sm border border-zinc-700/60 rounded-xl p-6 hover:bg-zinc-800/60 hover:border-zinc-600/70 transition-all duration-300 cursor-pointer"
-                                    onClick={() => router.push(`/repo/${repo.repo_hash}/getting-started`)}
-                                >
-                                    {/* Subtle gradient overlay on hover */}
-                                    <div className="absolute inset-0 bg-gradient-to-r from-zinc-700/10 via-zinc-700/20 to-zinc-700/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
-
-                                    <div className="relative flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            {/* Repository Name */}
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <GitBranch className="h-5 w-5 text-zinc-500 flex-shrink-0" />
-                                                <h3 className="text-xl font-semibold text-zinc-100 truncate">
-                                                    {repo.name}
-                                                </h3>
-                                                {isMine && (
-                                                    <span className="px-2.5 py-0.5 text-xs font-medium bg-zinc-600/60 text-zinc-200 rounded-full">
-                                                        Added
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Repository URL */}
-                                            <a
-                                                href={repo.github_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm text-zinc-500 hover:text-zinc-400 transition-colors inline-flex items-center gap-1 mb-4"
-                                            >
-                                                <span className="truncate">{repo.github_url}</span>
-                                                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                                            </a>
-
-                                            {/* Repository Type */}
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="px-3 py-1 bg-zinc-700/60 text-zinc-300 rounded-md font-mono text-xs">
-                                                    {repo.repo_type}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2 flex-shrink-0">
-                                            {showAddButton && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleAdd(repo);
-                                                    }}
-                                                    className="p-2.5 bg-zinc-700/60 hover:bg-zinc-600/70 text-zinc-300 hover:text-zinc-100 rounded-lg transition-all duration-200 hover:scale-105"
-                                                    title="Add to my repositories"
-                                                >
-                                                    <Plus className="h-3 w-3" />
-                                                </button>
-                                            )}
-                                            {showRemoveButton && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleRemove(repo);
-                                                    }}
-                                                    className="p-2.5 bg-zinc-800/70 hover:bg-zinc-700/90 text-zinc-200 hover:text-white rounded-lg transition-all duration-200 hover:scale-105"
-                                                    title="Remove from my repositories"
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
+                {currentView === 'repositories' ? (
+                  <>
+                    <RepositoryList 
+                      displayedRepositories={displayedRepositories}
+                      myHashes={myHashes}
+                      viewMode={viewMode}
+                      onAdd={handleAdd}
+                      onRemove={handleRemove}
+                      onCreatePage={(repo) => {
+                        setSelectedRepo(repo);
+                        setNewPageTitle(`New Page - ${repo.name}`); // wait, newPageTitle is in component now, so remove
+                        setIsTitleDialogOpen(true);
+                      }}
+                    />
+                    {displayedRepositories.length === 0 && (
+                      <div className="rounded-md border border-dashed border-white/10 bg-white/[0.01] py-16 text-center">
+                        <button
+                          className="group inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 mb-4 hover:bg-white/10 transition-all duration-200 hover:scale-110"
+                          onClick={() => setIsDialogOpen(true)}
+                        >
+                          <Plus className="w-8 h-8 text-white group-hover:text-white transition-colors" />
+                        </button>
+                        <p className="font-mono text-[14px] text-gray-600">
+                          {repoSearchTerm
+                            ? `No repositories found for "${repoSearchTerm}".`
+                            : viewMode === 'my'
+                              ? (
+                                  <>
+                                    No repositories added yet. Switch to{' '}
+                                    <span
+                                      onClick={() => setViewMode('all')}
+                                      className="underline cursor-pointer text-blue-400 hover:text-blue-300"
+                                    >
+                                      All Public
+                                    </span>{' '}
+                                    to explore.
+                                  </>
+                                )
+                              : 'No repositories found.'
+                          }
+                        </p>
+                        {repoSearchTerm && (
+                          <p className="text-gray-500 text-sm mt-2 font-mono text-[14px]">
+                            Click the + to clone a new repository.
+                          </p>
+                        )}
+                      </div>
                     )}
-                </div>
+                  </>
+                ) : (
+                  <PageList 
+                    pagesLoading={pagesLoading}
+                    displayedPages={displayedPages}
+                    onDelete={handleDeletePage}
+                    pageSearchTerm={pageSearchTerm}
+                  />
+                )}
 
                 {/* Footer info */}
-                {displayedRepositories.length > 0 && (
-                    <div className="mt-8 text-center text-sm text-zinc-500">
-                        Showing {displayedRepositories.length} {displayedRepositories.length === 1 ? 'repository' : 'repositories'}
+                {(currentView === 'repositories' ? displayedRepositories : displayedPages).length > 0 && (
+                    <div className="mt-8 text-center text-sm text-gray-500 font-mono text-[14px]">
+                        Showing {(currentView === 'repositories' ? displayedRepositories : displayedPages).length} {currentView === 'repositories' ? (displayedRepositories.length === 1 ? 'repository' : 'repositories') : (displayedPages.length === 1 ? 'page' : 'pages')}
                     </div>
                 )}
             </div>
+            <CloneDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} onCloneSuccess={refetch} />
+
+            <CreatePageDialog isOpen={isTitleDialogOpen} onOpenChange={setIsTitleDialogOpen} selectedRepo={selectedRepo} />
         </div>
     );
 }

@@ -120,14 +120,28 @@ export function SlidingSidebar() {
     return id;
   };
 
-  const handleCreateDocumentation = () => {
-    if (!isRepoRoute) {
+  const handleCreateDocumentation = async () => {
+    if (!isRepoRoute || !repoData || "error" in repoData || creatingChat) {
       setChatError("Open a repository to create documentation.");
       return;
     }
 
-    const conversationId = generateConversationId();
-    router.push(`/repo/${repoId}/conversation/${conversationId}`);
+    try {
+      setCreatingChat(true);
+      setChatError(null);
+      const response = await pageApi.createPage({
+        title: "New Documentation",
+        content: "",
+        repo_hash: repoId,
+        repo_name: repoData.name
+      });
+      router.push(`/repo/${repoId}/page/${response.page.id}`);
+    } catch (error) {
+      console.error("Failed to create documentation page:", error);
+      setChatError("Could not create documentation. Please try again.");
+    } finally {
+      setCreatingChat(false);
+    }
   };
 
   const handleUpdateRepository = async () => {
@@ -246,10 +260,19 @@ export function SlidingSidebar() {
               {/* New Doc Button */}
               <button
                 onClick={handleCreateDocumentation}
-                className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] px-3 py-2 font-mono text-[14px] text-gray-300 transition-colors hover:bg-[#333333] hover:text-white"
+                disabled={creatingChat}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-mono text-[14px] text-gray-300 transition-colors ${
+                  creatingChat 
+                    ? "bg-[#2a2a2a] cursor-not-allowed opacity-50" 
+                    : "bg-[#2a2a2a] hover:bg-[#333333] hover:text-white"
+                }`}
               >
-                <Plus className="h-3.5 w-3.5" />
-                New Doc
+                {creatingChat ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5" />
+                )}
+                {creatingChat ? "Creating..." : "New Doc"}
               </button>
 
               {/* Organisation Section */}
@@ -378,4 +401,6 @@ export function SlidingSidebar() {
 }
 
 export default SlidingSidebar;
+
+
 

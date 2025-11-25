@@ -51,8 +51,8 @@ export default function UsagePage({ params }: { params: { repoId: string } | Pro
         <div className="min-h-screen bg-[#191919] text-white">
             {/* <RepoNavigation repoId={repoId} /> */}
             <div className="max-w-5xl mx-auto px-6 py-8">
-                <div className="prose prose-invert max-w-none bg-white/[0.02] border border-white/[0.06] rounded-lg p-6">
-                    <h1 className="text-[24px] font-bold mb-6 font-mono text-center">Usage & API Reference</h1>
+                <div className="prose prose-invert max-w-none bg-white/[0.02] border border-white/[0.06] rounded-lg p-6 center-first-heading">
+                    {/* <h1 className="text-[24px] font-bold mb-6 font-mono text-center">Usage & API Reference</h1> */}
                     <AsyncMarkdown components={getMarkdownComponents(false)} isUser={false}>
                         {usageInfo}
                     </AsyncMarkdown>

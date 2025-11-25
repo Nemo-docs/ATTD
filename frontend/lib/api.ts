@@ -65,7 +65,7 @@ export async function apiRequest<T>(
         },
         ...options,
       })
-
+  
 
   if (!response.ok) {
     const error = await response.text().catch(() => 'Unknown error');
@@ -94,6 +94,8 @@ export const pageApi = {
       body: JSON.stringify({
         title: data.title,
         content: data.content ?? '',
+        repo_hash: data.repo_hash,
+        repo_name: data.repo_name,
       }),
     });
   },

@@ -4,11 +4,15 @@ export interface Page {
   content: string;
   created_at: string;
   updated_at: string;
+  repo_hash?: string;
+  repo_name?: string;
 }
 
 export interface CreatePageRequest {
   title: string;
   content?: string;
+  repo_hash?: string;
+  repo_name?: string;
 }
 
 export interface UpdatePageRequest {

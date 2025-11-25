@@ -67,19 +67,19 @@ export const getMarkdownComponents = (isUser: boolean = false): Components => ({
 
   // Headings with improved hierarchy and spacing
   h1({ children }) {
-    return <h1 className="mt-6 mb-4 text-2xl font-bold leading-tight">{children}</h1>;
+    return <h1 className="mt-6 mb-4 text-3xl font-bold leading-tight">{children}</h1>;
   },
   h2({ children }) {
-    return <h2 className="mt-5 mb-3 text-xl font-bold leading-tight">{children}</h2>;
+    return <h2 className="mt-5 mb-3 text-2xl font-bold leading-tight">{children}</h2>;
   },
   h3({ children }) {
-    return <h3 className="mt-4 mb-3 text-lg font-semibold leading-tight">{children}</h3>;
+    return <h3 className="mt-4 mb-3 text-xl font-semibold leading-tight">{children}</h3>;
   },
   h4({ children }) {
-    return <h4 className="mt-3 mb-2 text-base font-semibold leading-tight">{children}</h4>;
+    return <h4 className="mt-3 mb-2 text-lg font-semibold leading-tight">{children}</h4>;
   },
   h5({ children }) {
-    return <h5 className="mt-3 mb-2 text-sm font-semibold leading-tight">{children}</h5>;
+    return <h5 className="mt-3 mb-2 text-base font-semibold leading-tight">{children}</h5>;
   },
   h6({ children }) {
     return <h6 className="mt-3 mb-2 text-sm font-medium leading-tight">{children}</h6>;
