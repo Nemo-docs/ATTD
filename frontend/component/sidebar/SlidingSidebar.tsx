@@ -80,13 +80,8 @@ export function SlidingSidebar() {
 
   const personalPages = useMemo(() => pages.slice(0, 20), [pages]);
 
-  const handleNavigateToPage = (pageId: string) => {
-    if (isRepoRoute && repoId) {
-      router.push(`/repo/${repoId}/page/${pageId}`);
-      return;
-    }
-
-    router.push(`/${pageId}`);
+  const handleNavigateToPage = (page: Page) => {
+    router.push(`/repo/${page.repo_hash}/page/${page.id}`);
   };
 
   const handleStartNewChat = async () => {
@@ -131,10 +126,10 @@ export function SlidingSidebar() {
       const response = await pageApi.createPage({
         title: "New Documentation",
         content: "",
-        repo_hash: repoId,
+        repo_hash: repoId!,
         repo_name: repoData.name
       });
-      router.push(`/repo/${repoId}/page/${response.page.id}`);
+      router.push(`/repo/${repoId!}/page/${response.page.id}`);
     } catch (error) {
       console.error("Failed to create documentation page:", error);
       setChatError("Could not create documentation. Please try again.");
@@ -200,13 +195,13 @@ export function SlidingSidebar() {
     return (
       <div className="space-y-1">
         {personalPages.map((page) => {
-          const pagePath = isRepoRoute && repoId ? `/repo/${repoId}/page/${page.id}` : `/${page.id}`;
+          const pagePath = `/repo/${page.repo_hash}/page/${page.id}`;
           const isActive = pathname === pagePath;
 
           return (
             <button
               key={page.id}
-              onClick={() => handleNavigateToPage(page.id)}
+              onClick={() => handleNavigateToPage(page)}
               className={`group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-all ${
                 isActive
                   ? "bg-[#2a2a2a] text-white"
@@ -375,7 +370,6 @@ export function SlidingSidebar() {
 
       {/* Toggle handle - follows sidebar */}
       <button
-        // onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={() => setIsOpen(!isOpen)}
         className={`fixed top-1/2 z-[70] flex h-100 w-[20px] -translate-y-1/2 items-center justify-center rounded-r-lg  bg-gray-800  text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-100 hover:text-gray-900 ${
           isOpen ? "left-[280px]" : "left-0"

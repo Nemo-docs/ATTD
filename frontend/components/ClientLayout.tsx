@@ -94,7 +94,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     onPress: handleCtrlK,
   });
 
-  const showSidebar = !isAuthRoute && pathname !== "/" && pathname !== "/dashboard";
+  const showSidebar = !isAuthRoute && pathname !== "/" && pathname !== "/dashboard" && pathname !== "/snippets";
 
   // Auth redirect effect (runs unconditionally)
   useEffect(() => {

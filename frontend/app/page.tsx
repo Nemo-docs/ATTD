@@ -149,20 +149,28 @@ export default function Home() {
             <span className="text-sm text-zinc-400">Documentation for dev teams</span>
           </div>
           
-          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6 leading-tight">
-            <span className="text-zinc-400">Stop writing docs.</span>
-            <br />
-            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Start shipping code.
-            </span>
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight tracking-tight max-w-4xl mx-auto">
+            {/* <span className="text-zinc-400">We handle docs.</span> */}
+            {/* <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              You ship features.
+            </span> */}
+            {/* <br /> */}
+            <blockquote className="text-center">
+              <span className="block text-4xl sm:text-6xl lg:text-7xl bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-bold mb-2">
+                “I love writing docs”
+              </span>
+              <cite className="text-base sm:text-lg text-zinc-500 not-italic block">
+                — said no dev ever
+              </cite>
+            </blockquote>
+
           </h1>
           
-          <p className="text-lg sm:text-xl text-zinc-500 max-w-2xl mx-auto mb-3 sm:mb-4">
-            Let AI handle 80% of the grunt work so developers can focus on what they love.
-          </p>
+          {/* <p className="text-lg sm:text-xl text-zinc-500 max-w-2xl mx-auto mb-3 sm:mb-4">
+          “I love writing docs” — said no dev ever
+          </p> */}
           
-          <p className="text-sm text-zinc-600 font-mono mb-8 sm:mb-12">
-          </p>
+          
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
             <Button 
@@ -530,6 +538,65 @@ export default function Home() {
                     <span className="text-zinc-300 text-sm">{row.ours}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* Testimonials Section */}
+      <section className="relative z-10 py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4">What people are saying</h2>
+            {/* <p className="text-zinc-500 max-w-2xl mx-auto">Real teams, real results. Nemo is transforming how engineering teams document their code.</p> */}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+            {/* Testimonial 1 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sm:p-8 hover:bg-white/10 transition-colors">
+              <p className="text-zinc-400 italic mb-6 text-sm leading-relaxed">
+                &quot;We dont need Nemo, we love to send 300 pages of docs to new onboarding engineers.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-blue-500/20 border border-blue-500/30 rounded-full flex items-center justify-center">
+                  <span className="text-blue-400 font-semibold text-sm">EA</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-white">Evan Aaronson</div>
+                  <div className="text-zinc-500 text-sm">VP, LMAO</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Testimonial 2 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sm:p-8 hover:bg-white/10 transition-colors">
+              <p className="text-zinc-400 italic mb-6 text-sm leading-relaxed">
+                &quot;We dont write docs, because we are too busy in finding the code and understanding the intent.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-500/20 border border-purple-500/30 rounded-full flex items-center justify-center">
+                  <span className="text-purple-400 font-semibold text-sm">BS</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-white">Chris Matthews</div>
+                  <div className="text-zinc-500 text-sm">Head of Engineering, LOL</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Testimonial 3 */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sm:p-8 hover:bg-white/10 transition-colors">
+              <p className="text-zinc-400 italic mb-6 text-sm leading-relaxed">
+                &quot;Docs hell no bro, see how I can just send emails and waste hours waiting for response.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-full flex items-center justify-center">
+                  <span className="text-emerald-400 font-semibold text-sm">CD</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-white">Josep Puig</div>
+                  <div className="text-zinc-500 text-sm">Strategic Leader, LMFAO</div>
+                </div>
               </div>
             </div>
           </div>

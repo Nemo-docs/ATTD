@@ -5,7 +5,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from clerk_backend_api.security.types import AuthenticateRequestOptions
 from utils.auth_redis import get_key_context
-
+from core.logger import logger_instance
 # Define public paths that bypass authentication
 PUBLIC_PREFIXES = ("/health", "/metrics", "/docs", "/openapi.json") # Allowed all but restrict access when routes are updated for auth
 
@@ -18,10 +18,9 @@ async def auth_middleware(request: Request, call_next):
     if any(request.url.path.startswith(p) for p in PUBLIC_PREFIXES):
         return await call_next(request)
 
-    # Allow CORS preflight requests
+    # Bypass auth for OPTIONS preflight requests
     if request.method == "OPTIONS":
         return await call_next(request)
-    
 
     # API key auth for MCP endpoints
     if request.url.path.startswith("/api/mcp"):
@@ -59,7 +58,7 @@ async def auth_middleware(request: Request, call_next):
                 {"error": "Invalid API key"},
                 status_code=401
             )        
-
+    
     # Authenticate request via Clerk
     hx_req = httpx.Request(
         method=request.method,

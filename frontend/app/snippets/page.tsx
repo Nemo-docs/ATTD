@@ -9,6 +9,7 @@ import { Loader2, Pencil, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { snippetApi } from "@/lib/snippetApi";
 import { useSnippets } from "@/hooks/useSnippets";
 import type { Snippet, CreateSnippetRequest, UpdateSnippetRequest } from "@/types/snippet";
+import  Link  from "next/link";
 
 export default function SnippetsPage() {
   const {
@@ -159,20 +160,28 @@ export default function SnippetsPage() {
     <div className="min-h-screen bg-[#191919] text-white">
       <div className="mx-auto max-w-4xl px-6 py-12">
         {/* Header */}
-        <div className="mb-12 flex items-center justify-between">
-          <div>
-            <h1 className="font-mono text-[24px] font-medium tracking-tight">snippets</h1>
-            <p className="mt-1 text-[14px] text-gray-500">
-              {cachedSnippets.length} {cachedSnippets.length === 1 ? "item" : "items"}
-            </p>
-          </div>
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="h-9 gap-2 rounded-md bg-white/10 px-4 font-mono text-[14px] text-white transition-colors hover:bg-white/15"
+        <div className="mb-12">
+          <Link
+            href="/dashboard"
+            className="mb-4 inline-block text-gray-400 hover:text-white flex items-center gap-1 font-mono text-[14px]"
           >
-            <Plus className="size-4" />
-            New
-          </Button>
+            ← Back to Dashboard
+          </Link>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-mono text-[24px] font-medium tracking-tight">snippets</h1>
+              <p className="mt-1 text-[14px] text-gray-500">
+                {cachedSnippets.length} {cachedSnippets.length === 1 ? "item" : "items"}
+              </p>
+            </div>
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="h-9 gap-2 rounded-md bg-white/10 px-4 font-mono text-[14px] text-white transition-colors hover:bg-white/15"
+            >
+              <Plus className="size-4" />
+              New
+            </Button>
+          </div>
         </div>
 
         {/* Search Bar */}

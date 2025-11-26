@@ -3,6 +3,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from core.middleware import auth_middleware
 
 # Import and include routes (before app creation to avoid module level import issues)
 from app.modules.auto_generation.routes import router as auto_generation_router
@@ -29,8 +30,6 @@ from core.clients import mongodb_client, redis_client
  # Import custom logger
 from core.logger import logger_instance 
 
-# Import middleware
-from core.middleware import auth_middleware
 
 
 
@@ -85,6 +84,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add authentication middleware before CORS
+app.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -92,14 +94,12 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:1430",
-        settings.FRONTEND_BASE_URL
+        settings.FRONTEND_BASE_URL,
     ],  # Frontend origins
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
 )
-
-app.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
 # Include auto generation routes
 app.include_router(auto_generation_router, prefix="/api", tags=["auto-generation"])
