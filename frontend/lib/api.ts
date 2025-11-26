@@ -319,7 +319,7 @@ export const mermaidApi = {
     // Call Next.js API route directly (not backend API)
     const frontendUrl = typeof window !== 'undefined'
       ? window.location.origin
-      : process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://localhost:3000';
+      : process.env.NEXT_PUBLIC_FRONTEND_BASE_URL;
     
     const response = await fetch(`${frontendUrl}/api/mermaid/validate`, {
       method: 'POST',

@@ -61,13 +61,13 @@ if IS_PRO_USER:
             "type": "function",
             "function": {
                 "name": "get_details_from_scope",
-                "description": "Get details of codebase from the scope of the project, example: 'src\\app\\models\\user.py'",
+                "description": "Get details of codebase from the scope of the project, example: 'project_name/src/app/models/user.py'",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "scope": {
                             "type": "string",
-                            "description": "The path to the file from root of the project, example: 'src\\app\\models\\user.py'",
+                            "description": "The path to the file from root of the project, example: 'project_name/src/app/models/user.py'",
                         }
                     },
                     "required": ["scope"],
@@ -154,7 +154,8 @@ def get_tool_response(tool_call,project_context: str = None, repo_hash: str = No
     try:
         tool_result = TOOL_MAPPING[tool_name](**resolved_args)
 
-        logger_instance.info(f"Tool {tool_name} execution completed")
+
+        logger_instance.info(f"Tool {tool_name} result: {tool_result}")
 
         return {
             "role": "tool",

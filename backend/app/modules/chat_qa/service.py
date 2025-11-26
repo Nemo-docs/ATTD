@@ -219,42 +219,15 @@ class ChatQaService:
             if not message:
                 return {"error": "No message provided", "id": str(uuid.uuid4())}
 
-            # Use the OpenRouter client to analyse whether repository-level
-            # context is required. We ask the model to return a simple YES/NO.
-            analysis_prompt = (
-                "You are an assistant that determines whether answering the user's "
-                "message requires an general overall understanding of the target repository. If it does require then you should return YES. If the answer to user's query requires exact code files in detail then you should return NO (may have some file names or service name in the query). "
-                "Respond with exactly one word: YES or NO.\n\n"
-                f"User message:\n```\n{message}\n```"
-            )
+            repo_path = os.getenv("PARENT_DIR") + "/" + repo_hash
+            if os.path.exists(repo_path):
+                pass
+            else:
+                # make the directory if it doesn't exist
+                os.makedirs(repo_path, exist_ok=True)
+                download_and_extract_zip(repo_hash, repo_path + ".zip", repo_path)
 
-            analysis_resp = llm_client.chat.completions.create(
-                model=self.default_model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You decide whether more breadth of repository-level context is required or some specific code files/services in depth detail.",
-                    },
-                    {"role": "user", "content": analysis_prompt},
-                ],
-                max_tokens=10,
-                temperature=0.0,
-            )
 
-            analysis_text = ""
-            try:
-                analysis_text = analysis_resp.choices[0].message.content.strip().upper()
-            except Exception:
-                analysis_text = "NO"
-
-            requires_repo_context = "YES" in analysis_text
-
-            self.logger.info(
-                f"Route analysis result (requires_repo_context={requires_repo_context}): {analysis_text}"
-            )
-
-            # if requires_repo_context and think_level == "simple":
-                # Forward to the full generator which can use repo context
             message = await resolve_definations(message, mentioned_definations, repo_hash)
             ans = await run_basic_agentic_loop(
                 [{"role": "user", "content": message}],

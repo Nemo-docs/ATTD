@@ -2,6 +2,7 @@ import boto3
 import zipfile
 import os
 from core.config import settings
+from core.logger import logger_instance
 
 
 S3_BUCKET_NAME = settings.S3_BUCKET_NAME
@@ -23,6 +24,7 @@ def upload_file_to_s3(zip_file_path: str, key: str):
 
 
 def download_and_extract_zip(key: str, download_path: str, extract_to: str):
+    logger_instance.info(f"Downloading zip file from S3: {key} to {download_path}")
     s3.download_file(S3_BUCKET_NAME, key, download_path)
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(extract_to)
