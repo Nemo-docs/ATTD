@@ -119,14 +119,14 @@ export default function LoginPage() {
               {authMode === "signin" ? (
                 <SignIn
                   appearance={clerkAppearance}
-                  afterSignInUrl="/"
+                  afterSignInUrl="/dashboard"
                   signUpUrl="/login?mode=signup"
                 />
                 // <>Sign in</>
               ) : (
                 <SignUp
                   appearance={clerkAppearance}
-                  afterSignUpUrl="/"
+                  afterSignUpUrl="/dashboard"
                   signInUrl="/login?mode=signin"
                 />
               )}

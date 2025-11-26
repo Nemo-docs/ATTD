@@ -98,10 +98,10 @@ export function ClientLayout({ children }: ClientLayoutProps) {
 
   // Auth redirect effect (runs unconditionally)
   useEffect(() => {
-    if (isLoaded && !isSignedIn && !isAuthRoute) {
+    if (isLoaded && !isSignedIn && !isAuthRoute && pathname !== "/") {
       router.replace("/login");
     }
-  }, [isLoaded, isSignedIn, isAuthRoute, router]);
+  }, [isLoaded, isSignedIn, isAuthRoute, router, pathname]);
 
   // Show desktop-only message on mobile for non-home paths (after all hooks)
   if (isMobile && pathname !== "/") {

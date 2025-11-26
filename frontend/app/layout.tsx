@@ -22,8 +22,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ATTD",
-  description: "Automated Technical Documentation",
+  title: "Nemo",
+  description: "AI-powered documentation for dev teams",
+  icons: {
+    icon: '/nemo_logo.svg',
+  },
 };
 
 export default function RootLayout({
