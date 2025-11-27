@@ -43,9 +43,10 @@ Replace `uv` with the appropriate runner/command if you use `uvicorn` or another
 
 Site
 
-Visit the project site: https://www.qiloglobal.com/
+Visit the project site: https://www.letsnemo.com/
 
 <img src="images/img1.png" alt="Project Overview" />
 
 <img src="images/Screenshot 2025-10-29 135020.png" alt="Project Overview" />
+
 
